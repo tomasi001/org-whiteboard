@@ -27,6 +27,7 @@ export interface WhiteboardNode {
   metadata?: Record<string, unknown>;
   departmentHead?: string;
   workflowType?: WorkflowType;
+  documentationUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,7 @@ export interface CreateNodeInput {
   position?: { x: number; y: number };
   documentationUrl?: string;
   workflowType?: WorkflowType;
+  departmentHead?: string;
 }
 
 export interface UpdateNodeInput {
