@@ -83,9 +83,8 @@ export function NodeCard({ node }: NodeCardProps) {
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      title={`Type: ${nodeTypeLabel}${node.departmentHead ? ` | Head: ${node.departmentHead}` : ''}${node.workflowType ? ` | Workflow: ${node.workflowType}` : ''}`}
       className={cn(
-        "relative flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-300 min-w-[240px]",
+        "relative flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-300 min-w-[240px] group",
         "bg-white/70 backdrop-blur-xl",
         "border-white/50",
         "shadow-lg shadow-slate-200/50",
@@ -97,6 +96,10 @@ export function NodeCard({ node }: NodeCardProps) {
         boxShadow: '0 4px 24px -1px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.04), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
       }}
     >
+      {/* Immediate hover label - shows type instantly on hover */}
+      <div className="absolute -top-8 left-0 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+        {nodeTypeLabel}
+      </div>
       <div className={cn(
         "flex-shrink-0 p-2 rounded-lg",
         node.type === "organisation" && "bg-blue-100 text-blue-600",

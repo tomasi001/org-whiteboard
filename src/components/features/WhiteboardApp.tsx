@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PanelRight, PanelRightClose } from "lucide-react";
 import { WhiteboardProvider, useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -10,8 +10,15 @@ import { CreateWhiteboardDialog } from "./CreateWhiteboardDialog";
 import { Button } from "@/components/ui/Button";
 
 function WhiteboardContent() {
-  const { currentWhiteboard } = useWhiteboard();
+  const { currentWhiteboard, selectedNode } = useWhiteboard();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+  // Auto-expand panel when a node is selected
+  useEffect(() => {
+    if (selectedNode && isPanelCollapsed) {
+      setIsPanelCollapsed(false);
+    }
+  }, [selectedNode, isPanelCollapsed]);
 
   if (!currentWhiteboard) {
     return <CreateWhiteboardDialog />;
