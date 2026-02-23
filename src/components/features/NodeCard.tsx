@@ -65,10 +65,14 @@ export function NodeCard({ node }: NodeCardProps) {
     }
   };
 
+  // Format node type for display
+  const nodeTypeLabel = node.type.charAt(0).toUpperCase() + node.type.slice(1);
+
   return (
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      title={`Type: ${nodeTypeLabel}${node.workflowType ? ` | Workflow: ${node.workflowType}` : ''}`}
       className={cn(
         "relative flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 min-w-[240px]",
         nodeColors[node.type],

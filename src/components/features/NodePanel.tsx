@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Button } from "@/components/ui/Button";
@@ -8,15 +8,28 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import type { NodeType, WorkflowType } from "@/types";
 
-const nodeTypes: { type: NodeType; label: string }[] = [
-  { type: "department", label: "Department" },
-  { type: "team", label: "Team" },
-  { type: "role", label: "Role" },
-  { type: "workflow", label: "Workflow" },
-  { type: "process", label: "Process" },
-  { type: "agent", label: "Agent" },
-  { type: "automation", label: "Automation" },
-];
+// Define the hierarchy: each type can only have these child types
+const hierarchyRules: Record<NodeType, NodeType[]> = {
+  organisation: ["department"],
+  department: ["team"],
+  team: ["role"],
+  role: ["workflow"],
+  workflow: ["process"],
+  process: ["agent"],
+  agent: ["automation"],
+  automation: [],
+};
+
+const nodeTypeLabels: Record<NodeType, string> = {
+  organisation: "Organisation",
+  department: "Department",
+  team: "Team",
+  role: "Role",
+  workflow: "Workflow",
+  process: "Process",
+  agent: "Agent",
+  automation: "Automation",
+};
 
 const workflowTypes: { type: WorkflowType; label: string }[] = [
   { type: "agentic", label: "Agentic" },
@@ -33,6 +46,20 @@ export function NodePanel() {
   const [newNodeDocsUrl, setNewNodeDocsUrl] = useState("");
 
   const currentNode = breadcrumbs[breadcrumbs.length - 1];
+
+  // Get valid child types based on current node type
+  const validChildTypes = useMemo(() => {
+    if (!currentNode) return [];
+    return hierarchyRules[currentNode.type] || [];
+  }, [currentNode]);
+
+  // Get the default child type
+  const defaultChildType = validChildTypes[0] || "department";
+
+  const handleOpenAddNode = () => {
+    setNewNodeType(defaultChildType);
+    setIsAddingNode(true);
+  };
 
   const handleAddNode = () => {
     if (!newNodeName.trim()) return;
@@ -71,8 +98,9 @@ export function NodePanel() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => setIsAddingNode(true)}
-            title="Add new node"
+            onClick={handleOpenAddNode}
+            disabled={validChildTypes.length === 0}
+            title={validChildTypes.length === 0 ? "No more items can be added here" : "Add new node"}
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -94,10 +122,13 @@ export function NodePanel() {
                   onChange={(e) => setNewNodeType(e.target.value as NodeType)}
                   className="w-full mt-1 h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
                 >
-                  {nodeTypes.map(({ type, label }) => (
-                    <option key={type} value={type}>{label}</option>
+                  {validChildTypes.map((type) => (
+                    <option key={type} value={type}>{nodeTypeLabels[type]}</option>
                   ))}
                 </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  Adding to: {nodeTypeLabels[currentNode?.type] || 'Root'}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">Name</label>
