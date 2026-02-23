@@ -82,11 +82,17 @@ export function NodeCard({ node }: NodeCardProps) {
       onDoubleClick={handleDoubleClick}
       title={`Type: ${nodeTypeLabel}${node.departmentHead ? ` | Head: ${node.departmentHead}` : ''}${node.workflowType ? ` | Workflow: ${node.workflowType}` : ''}`}
       className={cn(
-        "relative flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 min-w-[240px]",
-        nodeColors[node.type],
-        isSelected && "ring-2 ring-slate-400 ring-offset-2",
+        "relative flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-300 min-w-[240px]",
+        "bg-white/70 backdrop-blur-xl",
+        "border-white/50",
+        "shadow-lg shadow-slate-200/50",
+        "hover:bg-white/80 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-0.5",
+        isSelected && "ring-2 ring-slate-400/50 ring-offset-2 ring-offset-transparent bg-white/90",
         node.workflowType && workflowColors[node.workflowType]
       )}
+      style={{
+        boxShadow: '0 4px 24px -1px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.04), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
+      }}
     >
       <div className={cn(
         "flex-shrink-0 p-2 rounded-lg",

@@ -329,7 +329,7 @@ export function Canvas() {
             transformOrigin: '0 0',
           }}
         >
-          {/* Draw connections */}
+          {/* Draw connections - lines connect from center of parent to center of child */}
           <svg 
             className="absolute pointer-events-none" 
             style={{ 
@@ -339,19 +339,32 @@ export function Canvas() {
               height: bounds.maxY - bounds.minY + 200,
             }}
           >
-            {layoutNodes.map(ln => (
-              ln.children.map(child => (
-                <line
-                  key={`${ln.node.id}-${child.node.id}`}
-                  x1={ln.x - bounds.minX + 100}
-                  y1={ln.y - bounds.minY + 100}
-                  x2={child.x - bounds.minX + 100}
-                  y2={child.y - bounds.minY + 100}
-                  stroke="#cbd5e1"
-                  strokeWidth="2"
-                />
-              ))
-            ))}
+            <defs>
+              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(148,163,184,0.6)" />
+                <stop offset="100%" stopColor="rgba(148,163,184,0.3)" />
+              </linearGradient>
+            </defs>
+            {layoutNodes.map(ln => {
+              const nodeCenterX = ln.x + 140;
+              const nodeCenterY = ln.y + 40;
+              return ln.children.map(child => {
+                const childCenterX = child.x + 140;
+                const childCenterY = child.y + 40;
+                return (
+                  <line
+                    key={`${ln.node.id}-${child.node.id}`}
+                    x1={nodeCenterX - bounds.minX + 100}
+                    y1={nodeCenterY - bounds.minY + 100}
+                    x2={childCenterX - bounds.minX + 100}
+                    y2={childCenterY - bounds.minY + 100}
+                    stroke="url(#lineGradient)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                );
+              });
+            })}
           </svg>
 
           {/* Draw nodes */}
