@@ -45,7 +45,8 @@ export function NodePanel() {
   const [newNodeWorkflowType, setNewNodeWorkflowType] = useState<WorkflowType | "">("");
   const [newNodeDocsUrl, setNewNodeDocsUrl] = useState("");
 
-  const currentNode = breadcrumbs[breadcrumbs.length - 1];
+  // Use selected node if available, otherwise use current breadcrumb
+  const currentNode = selectedNode || breadcrumbs[breadcrumbs.length - 1];
 
   // Get valid child types based on current node type
   const validChildTypes = useMemo(() => {
@@ -186,7 +187,20 @@ export function NodePanel() {
         {selectedNode && !isAddingNode && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">{selectedNode.name}</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">{selectedNode.name}</CardTitle>
+                {validChildTypes.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleOpenAddNode}
+                    className="text-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
