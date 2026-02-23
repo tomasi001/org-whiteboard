@@ -43,7 +43,7 @@ export function NodePanel() {
   const [newNodeDescription, setNewNodeDescription] = useState("");
   const [newNodeType, setNewNodeType] = useState<NodeType>("department");
   const [newNodeWorkflowType, setNewNodeWorkflowType] = useState<WorkflowType | "">("");
-  const [newNodeDocsUrl, setNewNodeDocsUrl] = useState("");
+  const [newNodeDepartmentHead, setNewNodeDepartmentHead] = useState("");
 
   // Use selected node if available, otherwise use current breadcrumb
   const currentNode = selectedNode || breadcrumbs[breadcrumbs.length - 1];
@@ -70,14 +70,14 @@ export function NodePanel() {
       name: newNodeName.trim(),
       description: newNodeDescription.trim() || undefined,
       parentId: currentNode?.id,
-      documentationUrl: newNodeDocsUrl.trim() || undefined,
+      departmentHead: newNodeDepartmentHead.trim() || undefined,
       workflowType: newNodeWorkflowType || undefined,
     });
 
     setNewNodeName("");
     setNewNodeDescription("");
     setNewNodeWorkflowType("");
-    setNewNodeDocsUrl("");
+    setNewNodeDepartmentHead("");
     setIsAddingNode(false);
   };
 
@@ -149,6 +149,17 @@ export function NodePanel() {
                   className="mt-1"
                 />
               </div>
+              {newNodeType === "department" && (
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Department Head</label>
+                  <Input
+                    value={newNodeDepartmentHead}
+                    onChange={(e) => setNewNodeDepartmentHead(e.target.value)}
+                    placeholder="Enter department head name"
+                    className="mt-1"
+                  />
+                </div>
+              )}
               {(newNodeType === "workflow" || newNodeType === "process") && (
                 <div>
                   <label className="text-sm font-medium text-slate-700">Workflow Type</label>
@@ -164,15 +175,6 @@ export function NodePanel() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="text-sm font-medium text-slate-700">Documentation URL</label>
-                <Input
-                  value={newNodeDocsUrl}
-                  onChange={(e) => setNewNodeDocsUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="mt-1"
-                />
-              </div>
             </CardContent>
             <CardFooter className="gap-2">
               <Button onClick={handleAddNode} className="flex-1">Add</Button>
@@ -213,23 +215,16 @@ export function NodePanel() {
                   <p className="text-sm text-slate-800">{selectedNode.description}</p>
                 </div>
               )}
+              {selectedNode.departmentHead && (
+                <div>
+                  <span className="text-xs font-medium text-slate-500 uppercase">Department Head</span>
+                  <p className="text-sm text-slate-800">{selectedNode.departmentHead}</p>
+                </div>
+              )}
               {selectedNode.workflowType && (
                 <div>
                   <span className="text-xs font-medium text-slate-500 uppercase">Workflow Type</span>
                   <p className="text-sm text-slate-800 capitalize">{selectedNode.workflowType}</p>
-                </div>
-              )}
-              {selectedNode.documentationUrl && (
-                <div>
-                  <span className="text-xs font-medium text-slate-500 uppercase">Documentation</span>
-                  <a
-                    href={selectedNode.documentationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline break-all"
-                  >
-                    {selectedNode.documentationUrl}
-                  </a>
                 </div>
               )}
               {selectedNode.children.length > 0 && (

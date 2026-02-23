@@ -21,7 +21,7 @@ export interface WhiteboardNode {
   children: WhiteboardNode[];
   position: { x: number; y: number };
   metadata?: Record<string, unknown>;
-  documentationUrl?: string;
+  departmentHead?: string;
   workflowType?: WorkflowType;
   createdAt: Date;
   updatedAt: Date;

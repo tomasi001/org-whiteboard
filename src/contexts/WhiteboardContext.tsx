@@ -171,7 +171,7 @@ export function WhiteboardProvider({ children }: { children: ReactNode }) {
         parentId: input.parentId,
         children: [],
         position: input.position || { x: 0, y: 0 },
-        documentationUrl: input.documentationUrl,
+        departmentHead: input.departmentHead,
         workflowType: input.workflowType,
         createdAt: new Date(),
         updatedAt: new Date(),

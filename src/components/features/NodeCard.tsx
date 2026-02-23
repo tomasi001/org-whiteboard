@@ -9,7 +9,7 @@ import {
   Bot, 
   Zap,
   ChevronRight,
-  FileText,
+  UserCircle,
   Workflow
 } from "lucide-react";
 import type { WhiteboardNode, NodeType, WorkflowType } from "@/types";
@@ -72,7 +72,7 @@ export function NodeCard({ node }: NodeCardProps) {
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      title={`Type: ${nodeTypeLabel}${node.workflowType ? ` | Workflow: ${node.workflowType}` : ''}`}
+      title={`Type: ${nodeTypeLabel}${node.departmentHead ? ` | Head: ${node.departmentHead}` : ''}${node.workflowType ? ` | Workflow: ${node.workflowType}` : ''}`}
       className={cn(
         "relative flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 min-w-[240px]",
         nodeColors[node.type],
@@ -113,17 +113,11 @@ export function NodeCard({ node }: NodeCardProps) {
         )}
 
         <div className="flex items-center gap-2 mt-2">
-          {node.documentationUrl && (
-            <a
-              href={node.documentationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
-            >
-              <FileText className="w-3 h-3" />
-              Docs
-            </a>
+          {node.departmentHead && (
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              <UserCircle className="w-3 h-3" />
+              {node.departmentHead}
+            </span>
           )}
           {hasChildren && (
             <span className="flex items-center gap-1 text-xs text-slate-500">
