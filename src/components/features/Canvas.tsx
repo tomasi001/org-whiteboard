@@ -215,8 +215,10 @@ export function Canvas() {
   };
 
   // Handle wheel for zooming (40% less sensitive) with mouse cursor focus
+  // Also prevent browser back/forward gestures
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();

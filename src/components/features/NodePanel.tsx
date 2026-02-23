@@ -10,7 +10,7 @@ import type { NodeType, WorkflowType } from "@/types";
 
 // Define the hierarchy: each type can only have these child types
 const hierarchyRules: Record<NodeType, NodeType[]> = {
-  organisation: ["department"],
+  organisation: ["department", "workflow"],
   department: ["team", "workflow"],
   team: ["teamLead", "teamMember", "workflow"],
   teamLead: ["subRole", "workflow"],
