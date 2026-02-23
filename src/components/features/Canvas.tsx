@@ -1,9 +1,19 @@
 "use client";
 
+import type { WhiteboardNode } from "@/types";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { NodeCard } from "./NodeCard";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+
+function findNodeById(node: WhiteboardNode, id: string): WhiteboardNode | null {
+  if (node.id === id) return node;
+  for (const child of node.children) {
+    const found = findNodeById(child, id);
+    if (found) return found;
+  }
+  return null;
+}
 
 export function Canvas() {
   const { 
@@ -27,7 +37,9 @@ export function Canvas() {
     );
   }
 
-  const currentNode = breadcrumbs[breadcrumbs.length - 1];
+  // Get current node from whiteboard's rootNode to ensure we have the latest data
+  const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
+  const currentNode = findNodeById(currentWhiteboard.rootNode, currentBreadcrumb.id) || currentBreadcrumb;
 
   const handleZoomIn = () => setZoom(zoom + 0.1);
   const handleZoomOut = () => setZoom(zoom - 0.1);
