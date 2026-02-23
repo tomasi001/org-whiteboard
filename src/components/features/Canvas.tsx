@@ -358,9 +358,10 @@ export function Canvas() {
                     y1={nodeCenterY - bounds.minY + 100}
                     x2={childCenterX - bounds.minX + 100}
                     y2={childCenterY - bounds.minY + 100}
-                    stroke="url(#lineGradient)"
+                    stroke="#94a3b8"
                     strokeWidth="2"
                     strokeLinecap="round"
+                    opacity="0.7"
                   />
                 );
               });
