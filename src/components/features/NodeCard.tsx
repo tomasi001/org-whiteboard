@@ -12,7 +12,8 @@ import {
   UserCircle,
   Workflow,
   UserCog,
-  UsersRound
+  UsersRound,
+  Wrench
 } from "lucide-react";
 import type { WhiteboardNode, NodeType, WorkflowType } from "@/types";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
@@ -31,6 +32,7 @@ const nodeIcons: Record<NodeType, React.ReactNode> = {
   teamMember: <UsersRound className="w-5 h-5" />,
   role: <User className="w-5 h-5" />,
   subRole: <UserCircle className="w-5 h-5" />,
+  tool: <Wrench className="w-5 h-5" />,
   workflow: <Workflow className="w-5 h-5" />,
   process: <GitBranch className="w-5 h-5" />,
   agent: <Bot className="w-5 h-5" />,
@@ -45,6 +47,7 @@ const nodeColors: Record<NodeType, string> = {
   teamMember: "bg-fuchsia-50 border-fuchsia-200 hover:bg-fuchsia-100",
   role: "bg-pink-50 border-pink-200 hover:bg-pink-100",
   subRole: "bg-rose-50 border-rose-200 hover:bg-rose-100",
+  tool: "bg-amber-50 border-amber-200 hover:bg-amber-100",
   workflow: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100",
   process: "bg-orange-50 border-orange-200 hover:bg-orange-100",
   agent: "bg-cyan-50 border-cyan-200 hover:bg-cyan-100",
@@ -103,6 +106,7 @@ export function NodeCard({ node }: NodeCardProps) {
         node.type === "teamMember" && "bg-fuchsia-100 text-fuchsia-600",
         node.type === "role" && "bg-pink-100 text-pink-600",
         node.type === "subRole" && "bg-rose-100 text-rose-600",
+        node.type === "tool" && "bg-amber-100 text-amber-600",
         node.type === "workflow" && "bg-emerald-100 text-emerald-600",
         node.type === "process" && "bg-orange-100 text-orange-600",
         node.type === "agent" && "bg-cyan-100 text-cyan-600",

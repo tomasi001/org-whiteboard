@@ -8,6 +8,7 @@ export type NodeType =
   | 'teamMember'
   | 'role'
   | 'subRole'
+  | 'tool'
   | 'workflow'
   | 'process'
   | 'agent'
