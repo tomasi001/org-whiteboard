@@ -18,9 +18,12 @@ function WhiteboardContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 shrink-0">
+    <div className="h-screen w-screen overflow-hidden relative">
+      {/* Canvas - fills entire background, behind everything */}
+      <Canvas />
+
+      {/* Header - fixed at top, high z-index */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center px-4 z-50">
         <h1 className="font-semibold text-slate-800">Org Whiteboard</h1>
         <span className="mx-2 text-slate-300">/</span>
         <span className="text-slate-600">{currentWhiteboard.name}</span>
@@ -36,14 +39,17 @@ function WhiteboardContent() {
         </div>
       </header>
 
-      {/* Breadcrumbs */}
-      <Breadcrumbs />
-
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        <Canvas />
-        {!isPanelCollapsed && <NodePanel />}
+      {/* Breadcrumbs - fixed below header */}
+      <div className="fixed top-14 left-0 right-0 z-40">
+        <Breadcrumbs />
       </div>
+
+      {/* Details Panel - fixed on right, high z-index */}
+      {!isPanelCollapsed && (
+        <div className="fixed top-14 right-0 bottom-0 z-40">
+          <NodePanel />
+        </div>
+      )}
     </div>
   );
 }

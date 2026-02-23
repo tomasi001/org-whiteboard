@@ -32,15 +32,11 @@ interface TreeLayoutProps {
 }
 
 function buildTreeLayout({ rootNode, levelGap, nodeGap }: TreeLayoutProps): LayoutNode {
-  // Calculate the height needed for each subtree
   const calculateHeights = (node: WhiteboardNode): number => {
-    if (node.children.length === 0) {
-      return 1; // Each leaf node takes 1 unit
-    }
+    if (node.children.length === 0) return 1;
     return node.children.reduce((sum, child) => sum + calculateHeights(child), 0);
   };
 
-  // Layout the tree recursively
   const layoutNode = (node: WhiteboardNode, level: number, startY: number): LayoutNode => {
     const childHeights = node.children.map(child => calculateHeights(child));
     
@@ -48,41 +44,25 @@ function buildTreeLayout({ rootNode, levelGap, nodeGap }: TreeLayoutProps): Layo
     const children: LayoutNode[] = [];
     
     if (node.children.length > 0) {
-      // Position children first
       for (let i = 0; i < node.children.length; i++) {
         const childHeight = childHeights[i] * nodeGap;
         children.push(layoutNode(node.children[i], level + 1, currentY));
         currentY += childHeight + nodeGap;
       }
       
-      // Parent is centered over children
       const firstChild = children[0];
       const lastChild = children[children.length - 1];
       const parentY = (firstChild.y + lastChild.y) / 2;
       
-      return {
-        node,
-        x: level * levelGap,
-        y: parentY,
-        level,
-        children,
-      };
+      return { node, x: level * levelGap, y: parentY, level, children };
     } else {
-      // Leaf node
-      return {
-        node,
-        x: level * levelGap,
-        y: startY + nodeGap / 2,
-        level,
-        children: [],
-      };
+      return { node, x: level * levelGap, y: startY + nodeGap / 2, level, children: [] };
     }
   };
 
   return layoutNode(rootNode, 0, 0);
 }
 
-// Flatten tree for rendering
 function flattenLayout(layout: LayoutNode): LayoutNode[] {
   const result: LayoutNode[] = [layout];
   for (const child of layout.children) {
@@ -107,30 +87,19 @@ export function Canvas() {
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
-  // Calculate bounds and center
-  const { bounds, centerOffset } = useMemo(() => {
+  const { bounds } = useMemo(() => {
     if (!currentWhiteboard) {
-      return { 
-        bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 },
-        centerOffset: { x: 0, y: 0 }
-      };
+      return { bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 } };
     }
 
     const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
     const currentNode = findNodeById(currentWhiteboard.rootNode, currentBreadcrumb.id) || currentBreadcrumb;
     
-    const layout = buildTreeLayout({ 
-      rootNode: currentNode, 
-      levelGap: 320, 
-      nodeGap: 100 
-    });
+    const layout = buildTreeLayout({ rootNode: currentNode, levelGap: 320, nodeGap: 100 });
     const layoutNodes = flattenLayout(layout);
 
     if (layoutNodes.length === 0) {
-      return { 
-        bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 },
-        centerOffset: { x: 400, y: 300 }
-      };
+      return { bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 } };
     }
     
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -142,24 +111,16 @@ export function Canvas() {
     });
     
     const padding = 100;
-    const contentWidth = maxX - minX + padding * 2;
-    const contentHeight = maxY - minY + padding * 2;
-    
     return { 
       bounds: { 
         minX: minX - padding, 
         maxX: maxX + padding, 
         minY: minY - padding, 
         maxY: maxY + padding 
-      },
-      centerOffset: { 
-        x: (minX + maxX) / 2, 
-        y: (minY + maxY) / 2 
       }
     };
   }, [currentWhiteboard, breadcrumbs]);
 
-  // Auto-fit function
   const handleFitToView = useCallback(() => {
     if (!canvasRef.current || !currentWhiteboard) return;
     
@@ -172,7 +133,6 @@ export function Canvas() {
     const scaleY = canvasHeight / contentHeight;
     const newZoom = Math.min(scaleX, scaleY, 1.5);
     
-    // Center the content
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerY = (bounds.minY + bounds.maxY) / 2;
     const panX = canvasWidth / 2 - centerX * newZoom;
@@ -190,7 +150,6 @@ export function Canvas() {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start dragging if clicking on the canvas background
     if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-content')) {
       setIsDragging(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
@@ -202,20 +161,13 @@ export function Canvas() {
     if (isDragging) {
       const deltaX = e.clientX - lastMousePos.x;
       const deltaY = e.clientY - lastMousePos.y;
-      setPan({
-        x: pan.x + deltaX,
-        y: pan.y + deltaY
-      });
+      setPan({ x: pan.x + deltaX, y: pan.y + deltaY });
       setLastMousePos({ x: e.clientX, y: e.clientY });
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const handleMouseUp = () => setIsDragging(false);
 
-  // Handle wheel for zooming (40% less sensitive) with mouse cursor focus
-  // Also prevent browser back/forward gestures
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -228,11 +180,9 @@ export function Canvas() {
     const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
     const newZoom = Math.max(0.1, Math.min(3, zoom * zoomFactor));
     
-    // Calculate the point in canvas coordinates before zoom
     const canvasX = (mouseX - pan.x) / zoom;
     const canvasY = (mouseY - pan.y) / zoom;
     
-    // Calculate new pan to keep the mouse position stable
     const newPanX = mouseX - canvasX * newZoom;
     const newPanY = mouseY - canvasY * newZoom;
     
@@ -240,10 +190,8 @@ export function Canvas() {
     setPan({ x: newPanX, y: newPanY });
   };
 
-  // Initial fit to view when whiteboard loads
   useEffect(() => {
     if (currentWhiteboard && bounds) {
-      // Small delay to ensure DOM is ready
       const timer = setTimeout(handleFitToView, 100);
       return () => clearTimeout(timer);
     }
@@ -251,7 +199,7 @@ export function Canvas() {
 
   if (!currentWhiteboard) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50">
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-50 z-0">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-slate-700">No Whiteboard Loaded</h2>
           <p className="text-slate-500 mt-2">Create a new whiteboard to get started</p>
@@ -263,18 +211,8 @@ export function Canvas() {
   const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
   const currentNode = findNodeById(currentWhiteboard.rootNode, currentBreadcrumb.id) || currentBreadcrumb;
 
-  // Build hierarchical layout
-  const layout = useMemo(() => {
-    return buildTreeLayout({ 
-      rootNode: currentNode, 
-      levelGap: 320, 
-      nodeGap: 100 
-    });
-  }, [currentNode]);
-
-  const layoutNodes = useMemo(() => {
-    return flattenLayout(layout);
-  }, [layout]);
+  const layout = useMemo(() => buildTreeLayout({ rootNode: currentNode, levelGap: 320, nodeGap: 100 }), [currentNode]);
+  const layoutNodes = useMemo(() => flattenLayout(layout), [layout]);
 
   const handleNodeClick = (node: WhiteboardNode, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -283,15 +221,23 @@ export function Canvas() {
 
   const handleNodeDoubleClick = (node: WhiteboardNode, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (node.children.length > 0) {
-      drillDown(node);
-    }
+    if (node.children.length > 0) drillDown(node);
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
-      {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white rounded-lg shadow-md p-2">
+    <div 
+      ref={canvasRef}
+      className="fixed inset-0 z-0 bg-slate-50"
+      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
+      onClick={() => selectNode(null)}
+    >
+      {/* Zoom Controls - fixed position, low z-index so header is above */}
+      <div className="fixed top-20 right-4 z-30 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-2">
         <Button variant="ghost" size="icon" onClick={handleFitToView} title="Fit to view">
           <Maximize2 className="w-4 h-4" />
         </Button>
@@ -307,84 +253,61 @@ export function Canvas() {
         </Button>
       </div>
 
-      {/* Canvas Area */}
+      {/* Canvas content - transforms for pan/zoom */}
       <div 
-        ref={canvasRef}
-        className="flex-1 overflow-hidden"
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
-        onClick={() => selectNode(null)}
+        className="canvas-content absolute"
+        style={{
+          left: 0,
+          top: 0,
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+        }}
       >
-        <div 
-          className="canvas-content"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
+        {/* Connection lines */}
+        <svg 
+          className="absolute pointer-events-none" 
+          style={{ 
+            left: bounds.minX - 100, 
+            top: bounds.minY - 100,
+            width: bounds.maxX - bounds.minX + 200,
+            height: bounds.maxY - bounds.minY + 200,
           }}
         >
-          {/* Draw connections - lines connect from center of parent to center of child */}
-          <svg 
-            className="absolute pointer-events-none" 
-            style={{ 
-              left: bounds.minX - 100, 
-              top: bounds.minY - 100,
-              width: bounds.maxX - bounds.minX + 200,
-              height: bounds.maxY - bounds.minY + 200,
-            }}
-          >
-            <defs>
-              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(148,163,184,0.6)" />
-                <stop offset="100%" stopColor="rgba(148,163,184,0.3)" />
-              </linearGradient>
-            </defs>
-            {layoutNodes.map(ln => {
-              const nodeCenterX = ln.x + 140;
-              const nodeCenterY = ln.y + 40;
-              return ln.children.map(child => {
-                const childCenterX = child.x + 140;
-                const childCenterY = child.y + 40;
-                return (
-                  <line
-                    key={`${ln.node.id}-${child.node.id}`}
-                    x1={nodeCenterX - bounds.minX + 100}
-                    y1={nodeCenterY - bounds.minY + 100}
-                    x2={childCenterX - bounds.minX + 100}
-                    y2={childCenterY - bounds.minY + 100}
-                    stroke="#94a3b8"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    opacity="0.7"
-                  />
-                );
-              });
-            })}
-          </svg>
+          {layoutNodes.map(ln => {
+            const nodeCenterX = ln.x + 140;
+            const nodeCenterY = ln.y + 40;
+            return ln.children.map(child => {
+              const childCenterX = child.x + 140;
+              const childCenterY = child.y + 40;
+              return (
+                <line
+                  key={`${ln.node.id}-${child.node.id}`}
+                  x1={nodeCenterX - bounds.minX + 100}
+                  y1={nodeCenterY - bounds.minY + 100}
+                  x2={childCenterX - bounds.minX + 100}
+                  y2={childCenterY - bounds.minY + 100}
+                  stroke="#94a3b8"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  opacity="0.7"
+                />
+              );
+            });
+          })}
+        </svg>
 
-          {/* Draw nodes */}
-          {layoutNodes.map(ln => (
-            <div
-              key={ln.node.id}
-              className="absolute"
-              style={{
-                left: ln.x,
-                top: ln.y,
-                width: '280px',
-              }}
-              onClick={(e) => handleNodeClick(ln.node, e)}
-              onDoubleClick={(e) => handleNodeDoubleClick(ln.node, e)}
-            >
-              <NodeCard node={ln.node} />
-            </div>
-          ))}
-        </div>
+        {/* Nodes */}
+        {layoutNodes.map(ln => (
+          <div
+            key={ln.node.id}
+            className="absolute"
+            style={{ left: ln.x, top: ln.y, width: '280px' }}
+            onClick={(e) => handleNodeClick(ln.node, e)}
+            onDoubleClick={(e) => handleNodeDoubleClick(ln.node, e)}
+          >
+            <NodeCard node={ln.node} />
+          </div>
+        ))}
       </div>
     </div>
   );
