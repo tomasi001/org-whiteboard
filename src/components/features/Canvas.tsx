@@ -214,12 +214,28 @@ export function Canvas() {
     setIsDragging(false);
   };
 
-  // Handle wheel for zooming (40% less sensitive)
+  // Handle wheel for zooming (40% less sensitive) with mouse cursor focus
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.06 : 0.06;
-    const newZoom = Math.max(0.1, Math.min(3, zoom + delta));
+    if (!canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
+    const newZoom = Math.max(0.1, Math.min(3, zoom * zoomFactor));
+    
+    // Calculate the point in canvas coordinates before zoom
+    const canvasX = (mouseX - pan.x) / zoom;
+    const canvasY = (mouseY - pan.y) / zoom;
+    
+    // Calculate new pan to keep the mouse position stable
+    const newPanX = mouseX - canvasX * newZoom;
+    const newPanY = mouseY - canvasY * newZoom;
+    
     setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
   };
 
   // Initial fit to view when whiteboard loads
