@@ -182,8 +182,8 @@ export function Canvas() {
     setPan({ x: panX, y: panY });
   }, [bounds, setZoom, setPan, currentWhiteboard]);
 
-  const handleZoomIn = () => setZoom(Math.min(zoom + 0.1, 3));
-  const handleZoomOut = () => setZoom(Math.max(zoom - 0.1, 0.1));
+  const handleZoomIn = () => setZoom(Math.min(zoom + 0.06, 3));
+  const handleZoomOut = () => setZoom(Math.max(zoom - 0.06, 0.1));
   const handleResetZoom = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -214,10 +214,10 @@ export function Canvas() {
     setIsDragging(false);
   };
 
-  // Handle wheel for zooming
+  // Handle wheel for zooming (40% less sensitive)
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const delta = e.deltaY > 0 ? -0.06 : 0.06;
     const newZoom = Math.max(0.1, Math.min(3, zoom + delta));
     setZoom(newZoom);
   };
