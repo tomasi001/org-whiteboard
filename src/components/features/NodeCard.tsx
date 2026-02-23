@@ -10,7 +10,9 @@ import {
   Zap,
   ChevronRight,
   UserCircle,
-  Workflow
+  Workflow,
+  UserCog,
+  UsersRound
 } from "lucide-react";
 import type { WhiteboardNode, NodeType, WorkflowType } from "@/types";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
@@ -25,7 +27,10 @@ const nodeIcons: Record<NodeType, React.ReactNode> = {
   organisation: <Building2 className="w-5 h-5" />,
   department: <Building2 className="w-5 h-5" />,
   team: <Users className="w-5 h-5" />,
+  teamLead: <UserCog className="w-5 h-5" />,
+  teamMember: <UsersRound className="w-5 h-5" />,
   role: <User className="w-5 h-5" />,
+  subRole: <UserCircle className="w-5 h-5" />,
   workflow: <Workflow className="w-5 h-5" />,
   process: <GitBranch className="w-5 h-5" />,
   agent: <Bot className="w-5 h-5" />,
@@ -36,7 +41,10 @@ const nodeColors: Record<NodeType, string> = {
   organisation: "bg-blue-50 border-blue-200 hover:bg-blue-100",
   department: "bg-indigo-50 border-indigo-200 hover:bg-indigo-100",
   team: "bg-purple-50 border-purple-200 hover:bg-purple-100",
+  teamLead: "bg-violet-50 border-violet-200 hover:bg-violet-100",
+  teamMember: "bg-fuchsia-50 border-fuchsia-200 hover:bg-fuchsia-100",
   role: "bg-pink-50 border-pink-200 hover:bg-pink-100",
+  subRole: "bg-rose-50 border-rose-200 hover:bg-rose-100",
   workflow: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100",
   process: "bg-orange-50 border-orange-200 hover:bg-orange-100",
   agent: "bg-cyan-50 border-cyan-200 hover:bg-cyan-100",
@@ -85,7 +93,10 @@ export function NodeCard({ node }: NodeCardProps) {
         node.type === "organisation" && "bg-blue-100 text-blue-600",
         node.type === "department" && "bg-indigo-100 text-indigo-600",
         node.type === "team" && "bg-purple-100 text-purple-600",
+        node.type === "teamLead" && "bg-violet-100 text-violet-600",
+        node.type === "teamMember" && "bg-fuchsia-100 text-fuchsia-600",
         node.type === "role" && "bg-pink-100 text-pink-600",
+        node.type === "subRole" && "bg-rose-100 text-rose-600",
         node.type === "workflow" && "bg-emerald-100 text-emerald-600",
         node.type === "process" && "bg-orange-100 text-orange-600",
         node.type === "agent" && "bg-cyan-100 text-cyan-600",
