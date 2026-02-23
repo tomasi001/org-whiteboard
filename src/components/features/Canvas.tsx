@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import type { WhiteboardNode } from "@/types";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { NodeCard } from "./NodeCard";
@@ -43,17 +43,14 @@ function buildTreeLayout({ rootNode, levelGap, nodeGap }: TreeLayoutProps): Layo
   // Layout the tree recursively
   const layoutNode = (node: WhiteboardNode, level: number, startY: number): LayoutNode => {
     const childHeights = node.children.map(child => calculateHeights(child));
-    const totalHeight = childHeights.reduce((sum, h) => sum + h, 0);
     
-    // Position this node at the center of its children's vertical space
     let currentY = startY;
     const children: LayoutNode[] = [];
     
     if (node.children.length > 0) {
-      // Position children first, then center parent
+      // Position children first
       for (let i = 0; i < node.children.length; i++) {
         const childHeight = childHeights[i] * nodeGap;
-        const childY = currentY + childHeight / 2;
         children.push(layoutNode(node.children[i], level + 1, currentY));
         currentY += childHeight + nodeGap;
       }
@@ -71,7 +68,7 @@ function buildTreeLayout({ rootNode, levelGap, nodeGap }: TreeLayoutProps): Layo
         children,
       };
     } else {
-      // Leaf node - position at startY + half its height (which is nodeGap)
+      // Leaf node
       return {
         node,
         x: level * levelGap,
@@ -94,23 +91,13 @@ function flattenLayout(layout: LayoutNode): LayoutNode[] {
   return result;
 }
 
-// Find all descendants
-function findAllDescendants(node: WhiteboardNode): WhiteboardNode[] {
-  const result: WhiteboardNode[] = [];
-  const traverse = (n: WhiteboardNode) => {
-    result.push(n);
-    n.children.forEach(traverse);
-  };
-  node.children.forEach(traverse);
-  return result;
-}
-
 export function Canvas() {
   const { 
     currentWhiteboard, 
     breadcrumbs, 
     zoom, 
     setZoom, 
+    pan,
     setPan,
     selectNode,
     drillDown 
@@ -118,23 +105,131 @@ export function Canvas() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
-  // Update container size on resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (canvasRef.current) {
-        setContainerSize({
-          width: canvasRef.current.clientWidth,
-          height: canvasRef.current.clientHeight,
-        });
+  // Calculate bounds and center
+  const { bounds, centerOffset } = useMemo(() => {
+    if (!currentWhiteboard) {
+      return { 
+        bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 },
+        centerOffset: { x: 0, y: 0 }
+      };
+    }
+
+    const currentBreadcrumb = breadcrumbs[breadcrumbs.length - 1];
+    const currentNode = findNodeById(currentWhiteboard.rootNode, currentBreadcrumb.id) || currentBreadcrumb;
+    
+    const layout = buildTreeLayout({ 
+      rootNode: currentNode, 
+      levelGap: 320, 
+      nodeGap: 100 
+    });
+    const layoutNodes = flattenLayout(layout);
+
+    if (layoutNodes.length === 0) {
+      return { 
+        bounds: { minX: 0, maxX: 800, minY: 0, maxY: 600 },
+        centerOffset: { x: 400, y: 300 }
+      };
+    }
+    
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    layoutNodes.forEach(ln => {
+      minX = Math.min(minX, ln.x);
+      maxX = Math.max(maxX, ln.x + 280);
+      minY = Math.min(minY, ln.y - 40);
+      maxY = Math.max(maxY, ln.y + 80);
+    });
+    
+    const padding = 100;
+    const contentWidth = maxX - minX + padding * 2;
+    const contentHeight = maxY - minY + padding * 2;
+    
+    return { 
+      bounds: { 
+        minX: minX - padding, 
+        maxX: maxX + padding, 
+        minY: minY - padding, 
+        maxY: maxY + padding 
+      },
+      centerOffset: { 
+        x: (minX + maxX) / 2, 
+        y: (minY + maxY) / 2 
       }
     };
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
+  }, [currentWhiteboard, breadcrumbs]);
+
+  // Auto-fit function
+  const handleFitToView = useCallback(() => {
+    if (!canvasRef.current || !currentWhiteboard) return;
+    
+    const canvasWidth = canvasRef.current.clientWidth;
+    const canvasHeight = canvasRef.current.clientHeight;
+    const contentWidth = bounds.maxX - bounds.minX;
+    const contentHeight = bounds.maxY - bounds.minY;
+    
+    const scaleX = canvasWidth / contentWidth;
+    const scaleY = canvasHeight / contentHeight;
+    const newZoom = Math.min(scaleX, scaleY, 1.5);
+    
+    // Center the content
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    const panX = canvasWidth / 2 - centerX * newZoom;
+    const panY = canvasHeight / 2 - centerY * newZoom;
+    
+    setZoom(newZoom);
+    setPan({ x: panX, y: panY });
+  }, [bounds, setZoom, setPan, currentWhiteboard]);
+
+  const handleZoomIn = () => setZoom(Math.min(zoom + 0.1, 3));
+  const handleZoomOut = () => setZoom(Math.max(zoom - 0.1, 0.1));
+  const handleResetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only start dragging if clicking on the canvas background
+    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-content')) {
+      setIsDragging(true);
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      const deltaX = e.clientX - lastMousePos.x;
+      const deltaY = e.clientY - lastMousePos.y;
+      setPan({
+        x: pan.x + deltaX,
+        y: pan.y + deltaY
+      });
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Handle wheel for zooming
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Math.max(0.1, Math.min(3, zoom + delta));
+    setZoom(newZoom);
+  };
+
+  // Initial fit to view when whiteboard loads
+  useEffect(() => {
+    if (currentWhiteboard && bounds) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(handleFitToView, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentWhiteboard]);
 
   if (!currentWhiteboard) {
     return (
@@ -162,62 +257,6 @@ export function Canvas() {
   const layoutNodes = useMemo(() => {
     return flattenLayout(layout);
   }, [layout]);
-
-  // Calculate canvas bounds
-  const bounds = useMemo(() => {
-    if (layoutNodes.length === 0) return { minX: 0, maxX: 800, minY: 0, maxY: 600 };
-    
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    layoutNodes.forEach(ln => {
-      minX = Math.min(minX, ln.x);
-      maxX = Math.max(maxX, ln.x + 280); // Node width
-      minY = Math.min(minY, ln.y - 40);
-      maxY = Math.max(maxY, ln.y + 80); // Node height
-    });
-    return { minX: minX - 50, maxX: maxX + 50, minY: minY - 50, maxY: maxY + 50 };
-  }, [layoutNodes]);
-
-  // Auto-fit function
-  const handleFitToView = () => {
-    const canvasWidth = containerSize.width - 100;
-    const canvasHeight = containerSize.height - 100;
-    const contentWidth = bounds.maxX - bounds.minX;
-    const contentHeight = bounds.maxY - bounds.minY;
-    
-    const scaleX = canvasWidth / contentWidth;
-    const scaleY = canvasHeight / contentHeight;
-    const newZoom = Math.min(scaleX, scaleY, 1);
-    
-    setZoom(newZoom);
-    setPan({ x: 50, y: 50 });
-  };
-
-  const handleZoomIn = () => setZoom(zoom + 0.1);
-  const handleZoomOut = () => setZoom(zoom - 0.1);
-  const handleResetZoom = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-content')) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - zoom * 50, y: e.clientY - zoom * 50 });
-    }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPan({
-        x: (e.clientX - dragStart.x) / zoom,
-        y: (e.clientY - dragStart.y) / zoom
-      });
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsDragging(false);
-  };
 
   const handleNodeClick = (node: WhiteboardNode, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -253,32 +292,43 @@ export function Canvas() {
       {/* Canvas Area */}
       <div 
         ref={canvasRef}
-        className="flex-1 overflow-hidden cursor-grab"
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseUp={handleCanvasMouseUp}
-        onMouseLeave={handleCanvasMouseUp}
+        className="flex-1 overflow-hidden"
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
         onClick={() => selectNode(null)}
       >
         <div 
-          className="canvas-content relative"
+          className="canvas-content"
           style={{
-            width: '5000px',
-            height: '3000px',
-            transform: `scale(${zoom})`,
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
           }}
         >
           {/* Draw connections */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '5000px', minHeight: '3000px' }}>
+          <svg 
+            className="absolute pointer-events-none" 
+            style={{ 
+              left: bounds.minX - 100, 
+              top: bounds.minY - 100,
+              width: bounds.maxX - bounds.minX + 200,
+              height: bounds.maxY - bounds.minY + 200,
+            }}
+          >
             {layoutNodes.map(ln => (
               ln.children.map(child => (
                 <line
                   key={`${ln.node.id}-${child.node.id}`}
-                  x1={ln.x + 280}
-                  y1={ln.y + 40}
-                  x2={child.x}
-                  y2={child.y + 40}
+                  x1={ln.x - bounds.minX + 100}
+                  y1={ln.y - bounds.minY + 100}
+                  x2={child.x - bounds.minX + 100}
+                  y2={child.y - bounds.minY + 100}
                   stroke="#cbd5e1"
                   strokeWidth="2"
                 />
