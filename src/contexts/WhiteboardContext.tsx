@@ -1,8 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import type { Whiteboard, WhiteboardNode, WhiteboardState, CreateNodeInput, UpdateNodeInput } from "@/types";
 import { generateId } from "@/lib/utils";
+
+const STORAGE_KEY = "org-whiteboard-state";
 
 interface WhiteboardContextType extends WhiteboardState {
   createWhiteboard: (name: string, description?: string) => void;
@@ -30,8 +32,68 @@ const defaultState: WhiteboardState = {
   error: null,
 };
 
+// Load state from localStorage
+function loadState(): WhiteboardState {
+  if (typeof window === "undefined") return defaultState;
+  
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Restore dates
+      if (parsed.currentWhiteboard) {
+        parsed.currentWhiteboard.createdAt = new Date(parsed.currentWhiteboard.createdAt);
+        parsed.currentWhiteboard.updatedAt = new Date(parsed.currentWhiteboard.updatedAt);
+        // Recursively restore node dates
+        const restoreDates = (node: WhiteboardNode) => {
+          node.createdAt = new Date(node.createdAt);
+          node.updatedAt = new Date(node.updatedAt);
+          node.children.forEach(restoreDates);
+        };
+        restoreDates(parsed.currentWhiteboard.rootNode);
+      }
+      return { ...defaultState, ...parsed };
+    }
+  } catch (e) {
+    console.error("Failed to load whiteboard state:", e);
+  }
+  return defaultState;
+}
+
+// Save state to localStorage
+function saveState(state: WhiteboardState) {
+  if (typeof window === "undefined") return;
+  
+  try {
+    const toSave = {
+      currentWhiteboard: state.currentWhiteboard,
+      zoom: state.zoom,
+      pan: state.pan,
+      breadcrumbs: state.breadcrumbs,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  } catch (e) {
+    console.error("Failed to save whiteboard state:", e);
+  }
+}
+
 export function WhiteboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<WhiteboardState>(defaultState);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const loaded = loadState();
+    setState(loaded);
+    setIsHydrated(true);
+  }, []);
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    if (isHydrated) {
+      saveState(state);
+    }
+  }, [state, isHydrated]);
 
   const createWhiteboard = useCallback((name: string, description?: string) => {
     const rootNode: WhiteboardNode = {
