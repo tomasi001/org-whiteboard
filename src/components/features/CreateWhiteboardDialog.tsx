@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Sparkles } from "lucide-react";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
+import { GenerateOrgDialog } from "./GenerateOrgDialog";
 
 export function CreateWhiteboardDialog() {
   const { createWhiteboard, currentWhiteboard } = useWhiteboard();
   const [isOpen, setIsOpen] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -23,6 +25,10 @@ export function CreateWhiteboardDialog() {
 
   if (currentWhiteboard) {
     return null;
+  }
+
+  if (showGenerate) {
+    return <GenerateOrgDialog onClose={() => setShowGenerate(false)} />;
   }
 
   if (isOpen) {
@@ -100,22 +106,26 @@ export function CreateWhiteboardDialog() {
           </div>
           
           <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-slate-200">
-            <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+            <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-800">Documentation Previews</h3>
-              <p className="text-sm text-slate-600">Link documentation directly to your org structures</p>
+              <h3 className="font-semibold text-slate-800">AI Generation</h3>
+              <p className="text-sm text-slate-600">Describe your org and let AI build the structure</p>
             </div>
           </div>
         </div>
 
-        <Button onClick={() => setIsOpen(true)} size="lg">
-          <Plus className="w-5 h-5 mr-2" />
-          Create New Whiteboard
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button onClick={() => setIsOpen(true)} size="lg" variant="outline">
+            <Plus className="w-5 h-5 mr-2" />
+            Create Blank
+          </Button>
+          <Button onClick={() => setShowGenerate(true)} size="lg">
+            <Sparkles className="w-5 h-5 mr-2" />
+            Generate with AI
+          </Button>
+        </div>
       </div>
     </div>
   );
