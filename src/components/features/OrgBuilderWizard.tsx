@@ -5,6 +5,7 @@ import { Sparkles, Loader2, X, Send, Building2, Users, Wrench, GitBranch, CheckC
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
+import { MiniCanvasPreview } from "./MiniCanvasPreview";
 import type { WhiteboardNode } from "@/types";
 
 interface OrgBuilderWizardProps {
@@ -14,6 +15,7 @@ interface OrgBuilderWizardProps {
 interface Message {
   role: 'assistant' | 'user';
   content: string;
+  previewNode?: WhiteboardNode | null;
 }
 
 interface OrgData {
@@ -25,6 +27,11 @@ interface OrgData {
   tools: any[];
   workflows: any[];
   gaps: string[];
+}
+
+interface ConversationResponse {
+  guidance: string;
+  previewData: any;
 }
 
 function generateId(): string {
@@ -43,6 +50,58 @@ function buildNode(type: string, name: string, description?: string, extra?: Par
     updatedAt: new Date(),
     ...extra,
   };
+}
+
+// Convert API response to WhiteboardNode
+function buildFromTemplate(template: any): WhiteboardNode {
+  const departments = template.departments?.map((dept: any) => {
+    const teams = dept.teams?.map((team: any) => {
+      const children: WhiteboardNode[] = [];
+      
+      if (team.teamLead) {
+        children.push(buildNode('teamLead', team.teamLead));
+      }
+      
+      if (team.teamMembers) {
+        team.teamMembers.forEach((member: string) => {
+          children.push(buildNode('teamMember', member));
+        });
+      }
+      
+      if (team.tools) {
+        team.tools.forEach((tool: string) => {
+          children.push(buildNode('tool', tool));
+        });
+      }
+      
+      if (team.workflows) {
+        team.workflows.forEach((wf: any) => {
+          const processes = wf.processes?.map((proc: any) => {
+            const agents = proc.agents?.map((agent: any) => {
+              const automations = agent.automations?.map((auto: string) => 
+                buildNode('automation', auto)
+              ) || [];
+              return buildNode('agent', agent.name, agent.description, { children: automations });
+            }) || [];
+            return buildNode('process', proc.name, proc.description, { children: agents });
+          }) || [];
+          children.push(buildNode('workflow', wf.name, wf.description, { 
+            workflowType: wf.type,
+            children: processes 
+          }));
+        });
+      }
+      
+      return buildNode('team', team.name, team.description, { children });
+    }) || [];
+    
+    return buildNode('department', dept.name, dept.description, { 
+      departmentHead: dept.head,
+      children: teams 
+    });
+  }) || [];
+  
+  return buildNode('organisation', template.name, template.description, { children: departments });
 }
 
 const STEPS = [
@@ -89,7 +148,7 @@ And briefly, what does your organisation do? This helps me understand the type o
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const callAI = async (userMessage: string): Promise<string> => {
+  const callAI = async (userMessage: string): Promise<ConversationResponse> => {
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,7 +165,10 @@ And briefly, what does your organisation do? This helps me understand the type o
     }
 
     const data = await response.json();
-    return data.response || data.message || JSON.stringify(data);
+    return {
+      guidance: data.guidance || "Thanks for sharing! Let me ask a follow-up question.",
+      previewData: data.previewData || null,
+    };
   };
 
   const handleSend = async () => {
@@ -149,7 +211,17 @@ Keep responses concise (2-4 sentences) and conversational. Ask one question at a
 
       const aiResponse = await callAI(aiPrompt);
       
-      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      // Build preview node from previewData if available
+      let previewNode: WhiteboardNode | null = null;
+      if (aiResponse.previewData) {
+        previewNode = buildFromTemplate(aiResponse.previewData);
+      }
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: aiResponse.guidance,
+        previewNode 
+      }]);
       setOrgData(updatedOrgData);
 
       // Auto-advance steps based on conversation progress
@@ -166,7 +238,7 @@ Keep responses concise (2-4 sentences) and conversational. Ask one question at a
         const currentStepId = STEPS[currentStep].id;
         const keywords = stepKeywords[currentStepId] || [];
         const hasKeywords = keywords.some(kw => 
-          userMessage.toLowerCase().includes(kw) || aiResponse.toLowerCase().includes(kw)
+          userMessage.toLowerCase().includes(kw) || aiResponse.guidance.toLowerCase().includes(kw)
         );
 
         if (hasKeywords || userMessage.length > 100) {
@@ -180,7 +252,8 @@ Keep responses concise (2-4 sentences) and conversational. Ask one question at a
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "I'm having trouble connecting right now. Could you try again? In the meantime, you can continue describing your organisation." 
+        content: "I'm having trouble connecting right now. Could you try again? In the meantime, you can continue describing your organisation.",
+        previewNode: null 
       }]);
     } finally {
       setIsLoading(false);
@@ -223,7 +296,7 @@ Keep responses concise (2-4 sentences) and conversational. Ask one question at a
       
       const stepId = STEPS[currentStep + 1].id;
       if (stepQuestions[stepId]) {
-        setMessages(prev => [...prev, { role: 'assistant', content: stepQuestions[stepId] }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: stepQuestions[stepId], previewNode: null }]);
       }
     }
   };
@@ -266,58 +339,6 @@ Generate a complete organisational structure based on this information.`;
 
       const generated = await response.json();
       
-      // Build the whiteboard from generated data
-      const buildFromTemplate = (template: any): WhiteboardNode => {
-        const departments = template.departments?.map((dept: any) => {
-          const teams = dept.teams?.map((team: any) => {
-            const children: WhiteboardNode[] = [];
-            
-            if (team.teamLead) {
-              children.push(buildNode('teamLead', team.teamLead));
-            }
-            
-            if (team.teamMembers) {
-              team.teamMembers.forEach((member: string) => {
-                children.push(buildNode('teamMember', member));
-              });
-            }
-            
-            if (team.tools) {
-              team.tools.forEach((tool: string) => {
-                children.push(buildNode('tool', tool));
-              });
-            }
-            
-            if (team.workflows) {
-              team.workflows.forEach((wf: any) => {
-                const processes = wf.processes?.map((proc: any) => {
-                  const agents = proc.agents?.map((agent: any) => {
-                    const automations = agent.automations?.map((auto: string) => 
-                      buildNode('automation', auto)
-                    ) || [];
-                    return buildNode('agent', agent.name, agent.description, { children: automations });
-                  }) || [];
-                  return buildNode('process', proc.name, proc.description, { children: agents });
-                }) || [];
-                children.push(buildNode('workflow', wf.name, wf.description, { 
-                  workflowType: wf.type,
-                  children: processes 
-                }));
-              });
-            }
-            
-            return buildNode('team', team.name, team.description, { children });
-          }) || [];
-          
-          return buildNode('department', dept.name, dept.description, { 
-            departmentHead: dept.head,
-            children: teams 
-          });
-        }) || [];
-        
-        return buildNode('organisation', template.name, template.description, { children: departments });
-      };
-
       const whiteboard = {
         id: generateId(),
         name: generated.name || orgData.name || 'My Organisation',
@@ -398,7 +419,7 @@ Generate a complete organisational structure based on this information.`;
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} flex-col ${msg.role === 'assistant' ? 'items-start' : 'items-end'}`}
             >
               <div
                 className={`max-w-[80%] rounded-lg px-4 py-2 ${
@@ -409,6 +430,24 @@ Generate a complete organisational structure based on this information.`;
               >
                 <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
               </div>
+              
+              {/* Preview embedded in chat */}
+              {msg.role === 'assistant' && msg.previewNode && (
+                <div className="mt-2 w-full max-w-md">
+                  <MiniCanvasPreview 
+                    rootNode={msg.previewNode}
+                    onConfirm={() => {
+                      // User confirmed the preview, move to next step
+                      if (currentStep < STEPS.length - 1) {
+                        nextStep();
+                      }
+                    }}
+                    onCancel={() => {
+                      // User wants to make changes, stay on current step
+                    }}
+                  />
+                </div>
+              )}
             </div>
           ))}
           {isLoading && (

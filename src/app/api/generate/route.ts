@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-const SYSTEM_PROMPT = `You are an expert organisational designer AI that thinks deeply about organisational structures. Your task is to generate comprehensive, realistic organisational structures based on user descriptions.
+const GENERATE_SYSTEM_PROMPT = `You are an expert organisational designer AI that thinks deeply about organisational structures. Your task is to generate comprehensive, realistic organisational structures based on user descriptions.
 
 You must output valid JSON that matches this exact structure:
 {
@@ -59,9 +59,53 @@ Be comprehensive - use all available levels: departments → teams → team memb
 
 Output ONLY valid JSON, no markdown formatting or explanations.`;
 
+const CONVERSATION_SYSTEM_PROMPT = `You are an expert organisational designer helping users build their organisation step by step through conversation.
+
+When the user provides information about their organisation, you should:
+1. Acknowledge what they've shared
+2. Ask follow-up questions to gather more details
+3. Provide guidance on next steps
+
+IMPORTANT: You must ALWAYS respond with valid JSON in this exact format:
+{
+  "guidance": "Your conversational response with guidance and next question",
+  "previewData": { // Only include this when you have enough info to show a preview structure
+    "name": "Organisation Name",
+    "description": "Brief description",
+    "departments": [
+      {
+        "name": "Department Name",
+        "description": "What this department does",
+        "head": "Name of department head (optional)",
+        "teams": [
+          {
+            "name": "Team Name",
+            "description": "Team purpose",
+            "teamLead": "Team lead name (optional)",
+            "teamMembers": ["Member 1", "Member 2"],
+            "tools": ["Tool 1", "Tool 2"],
+            "workflows": []
+          }
+        ],
+        "workflows": []
+      }
+    ],
+    "workflows": []
+  }
+}
+
+Guidelines:
+- Keep guidance concise (2-4 sentences) and conversational
+- Ask one focused question at a time
+- Only include previewData when you have meaningful structure to show (at least org name + 1 department)
+- If previewData is not ready yet, set it to null
+- Be helpful and encouraging
+
+Output ONLY valid JSON, no markdown formatting or explanations.`;
+
 export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, mode, orgData, currentStep } = await request.json();
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -73,20 +117,38 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       // Fallback to mock response for development
       console.log('No GEMINI_API_KEY found, using mock response');
+      
+      if (mode === 'conversation') {
+        return NextResponse.json(generateMockConversationResponse(prompt, orgData, currentStep));
+      }
       return NextResponse.json(generateMockResponse(prompt));
     }
 
     // Use Gemini AI with @google/genai
     const ai = new GoogleGenAI({ apiKey });
     
+    let contents: string;
+    let systemPrompt: string;
+    
+    if (mode === 'conversation') {
+      systemPrompt = CONVERSATION_SYSTEM_PROMPT;
+      contents = `${CONVERSATION_SYSTEM_PROMPT}\n\nCurrent conversation context:\n- Current step: ${currentStep || 'intro'}\n- Org data so far: ${JSON.stringify(orgData || {})}\n- User message: ${prompt}\n\nRespond with JSON containing guidance and optional previewData.`;
+    } else {
+      systemPrompt = GENERATE_SYSTEM_PROMPT;
+      contents = `${GENERATE_SYSTEM_PROMPT}\n\nGenerate an organisational structure for: ${prompt}`;
+    }
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `${SYSTEM_PROMPT}\n\nGenerate an organisational structure for: ${prompt}`,
+      contents,
     });
 
     const content = response.text;
 
     if (!content) {
+      if (mode === 'conversation') {
+        return NextResponse.json(generateMockConversationResponse(prompt, orgData, currentStep));
+      }
       return NextResponse.json(generateMockResponse(prompt));
     }
 
@@ -95,16 +157,97 @@ export async function POST(request: NextRequest) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        
+        // If in conversation mode, wrap in our expected format
+        if (mode === 'conversation') {
+          return NextResponse.json({
+            guidance: parsed.guidance || "Thanks for sharing that! Let me ask a follow-up question.",
+            previewData: parsed.previewData || null,
+          });
+        }
+        
         return NextResponse.json(parsed);
+      }
+      
+      if (mode === 'conversation') {
+        return NextResponse.json(generateMockConversationResponse(prompt, orgData, currentStep));
       }
       return NextResponse.json(generateMockResponse(prompt));
     } catch {
+      if (mode === 'conversation') {
+        return NextResponse.json(generateMockConversationResponse(prompt, orgData, currentStep));
+      }
       return NextResponse.json(generateMockResponse(prompt));
     }
   } catch (error) {
     console.error('Generate API error:', error);
     return NextResponse.json({ error: 'Failed to generate organisation' }, { status: 500 });
   }
+}
+
+function generateMockConversationResponse(prompt: string, orgData: any, currentStep: string) {
+  const stepQuestions: Record<string, string> = {
+    intro: "Thanks for sharing! Now let's talk about your **departments**. What are the main departments or divisions in your organisation? For example: Engineering, Sales, Marketing, Operations, etc.",
+    departments: "Great! Now let's map out your **teams**. Within each department, what teams exist? For example, Engineering might have Frontend, Backend, DevOps teams.",
+    teams: "Excellent! Now let's identify **roles and people**. Who are the key people in each team? What are their roles?",
+    roles: "Perfect! Now let's document the **tools** each team uses. What software, platforms, or tools does each team rely on?",
+    tools: "Almost there! Let's map out your **workflows and processes**. What are the key processes in your organisation?",
+    review: "Let's **review** everything we've gathered. Ready to generate your org chart?",
+  };
+
+  const defaultGuidance = stepQuestions[currentStep] || stepQuestions.intro;
+  
+  // Check if we have enough data to show a preview
+  const hasOrgName = orgData?.name || prompt.toLowerCase().includes('company') || prompt.toLowerCase().includes('organisation');
+  const hasDepartments = orgData?.departments?.length > 0 || 
+    prompt.toLowerCase().includes('engineering') || 
+    prompt.toLowerCase().includes('sales') ||
+    prompt.toLowerCase().includes('marketing');
+
+  // Extract org name if mentioned
+  let orgName = orgData?.name || 'My Organisation';
+  const nameMatch = prompt.match(/(?:called|named|is|for)\s+["']?([A-Z][a-zA-Z\s]+?)["']?(?:\s|,|\.|$)/i);
+  if (nameMatch && !orgData?.name) {
+    orgName = nameMatch[1].trim();
+  }
+
+  // Generate preview data if we have enough info
+  let previewData = null;
+  if (hasOrgName) {
+    const departments: any[] = [];
+    
+    if (hasDepartments || orgData?.departments?.length > 0) {
+      // Extract departments from prompt
+      const deptKeywords = ['engineering', 'sales', 'marketing', 'operations', 'product', 'hr', 'finance', 'support'];
+      for (const dept of deptKeywords) {
+        if (prompt.toLowerCase().includes(dept) || orgData?.departments?.includes(dept)) {
+          departments.push({
+            name: dept.charAt(0).toUpperCase() + dept.slice(1),
+            description: `${dept.charAt(0).toUpperCase() + dept.slice(1)} department`,
+            head: '',
+            teams: [],
+            workflows: []
+          });
+        }
+      }
+    }
+    
+    if (departments.length > 0 || orgData?.departments?.length > 0) {
+      previewData = {
+        name: orgName,
+        description: orgData?.description || 'Organisation description',
+        departments: departments.length > 0 ? departments : [
+          { name: "Operations", description: "Core operations", head: "", teams: [], workflows: [] }
+        ],
+        workflows: []
+      };
+    }
+  }
+
+  return {
+    guidance: defaultGuidance,
+    previewData,
+  };
 }
 
 function generateMockResponse(prompt: string) {
