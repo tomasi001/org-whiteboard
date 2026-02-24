@@ -8,7 +8,7 @@
 - **Icons**: Lucide React
 - **State Management**: React Context API
 - **Storage**: localStorage for persistence
-- **AI**: Google Gemini (gemini-2.0-flash) via @google/genai
+- **AI**: Google Gemini (gemini-2.5-flash) via @google/genai
 
 ## Development Setup
 - Node.js with pnpm package manager
