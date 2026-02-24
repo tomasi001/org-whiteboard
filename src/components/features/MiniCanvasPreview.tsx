@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { WhiteboardNode } from "@/types";
 import { NodeCard } from "./NodeCard";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, X, Expand } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 
 interface LayoutNode {
@@ -67,6 +67,7 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
   const [pan, setPan] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const layout = useMemo(() => buildTreeLayout(rootNode, 280, 80), [rootNode]);
   const layoutNodes = useMemo(() => flattenLayout(layout), [layout]);
@@ -181,7 +182,7 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
   };
 
   return (
-    <div className="flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+    <div className={`flex flex-col border border-slate-200 rounded-lg overflow-hidden bg-slate-50 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : ''}`}>
       {/* Header with zoom controls */}
       <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-slate-200">
         <span className="text-xs font-medium text-slate-600">Preview</span>
@@ -208,14 +209,24 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
           >
             <Maximize2 className="w-3.5 h-3.5 text-slate-500" />
           </button>
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-1 hover:bg-slate-100 rounded transition-colors"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <X className="w-3.5 h-3.5 text-slate-500" /> : <Expand className="w-3.5 h-3.5 text-slate-500" />}
+          </button>
         </div>
       </div>
 
       {/* Canvas */}
       <div 
         ref={containerRef}
-        className="relative h-64 overflow-hidden"
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        className="relative overflow-hidden"
+        style={{ 
+          cursor: isDragging ? 'grabbing' : 'grab',
+          height: isFullscreen ? 'calc(100vh - 100px)' : '256px'
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

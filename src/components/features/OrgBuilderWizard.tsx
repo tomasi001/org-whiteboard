@@ -446,7 +446,7 @@ Generate a complete organisational structure based on this information.`;
               
               {/* Preview embedded in chat */}
               {msg.role === 'assistant' && msg.previewNode && (
-                <div className="mt-2 w-full max-w-md">
+                <div className="mt-2 w-full">
                   <MiniCanvasPreview 
                     rootNode={msg.previewNode}
                     onConfirm={() => {
