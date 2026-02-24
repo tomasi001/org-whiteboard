@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { GenerateOrgDialog } from "./GenerateOrgDialog";
+import { OrgBuilderWizard } from "./OrgBuilderWizard";
 
 export function CreateWhiteboardDialog() {
   const { createWhiteboard, currentWhiteboard } = useWhiteboard();
   const [isOpen, setIsOpen] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -29,6 +31,10 @@ export function CreateWhiteboardDialog() {
 
   if (showGenerate) {
     return <GenerateOrgDialog onClose={() => setShowGenerate(false)} />;
+  }
+
+  if (showWizard) {
+    return <OrgBuilderWizard onClose={() => setShowWizard(false)} />;
   }
 
   if (isOpen) {
@@ -121,9 +127,13 @@ export function CreateWhiteboardDialog() {
             <Plus className="w-5 h-5 mr-2" />
             Create Blank
           </Button>
+          <Button onClick={() => setShowWizard(true)} size="lg" variant="secondary">
+            <Sparkles className="w-5 h-5 mr-2" />
+            Guided Setup
+          </Button>
           <Button onClick={() => setShowGenerate(true)} size="lg">
             <Sparkles className="w-5 h-5 mr-2" />
-            Generate with AI
+            Quick Generate
           </Button>
         </div>
       </div>
