@@ -186,66 +186,118 @@ export async function POST(request: NextRequest) {
 }
 
 function generateMockConversationResponse(prompt: string, orgData: any, currentStep: string) {
-  const stepQuestions: Record<string, string> = {
-    intro: "Thanks for sharing! Now let's talk about your **departments**. What are the main departments or divisions in your organisation? For example: Engineering, Sales, Marketing, Operations, etc.",
-    departments: "Great! Now let's map out your **teams**. Within each department, what teams exist? For example, Engineering might have Frontend, Backend, DevOps teams.",
-    teams: "Excellent! Now let's identify **roles and people**. Who are the key people in each team? What are their roles?",
-    roles: "Perfect! Now let's document the **tools** each team uses. What software, platforms, or tools does each team rely on?",
-    tools: "Almost there! Let's map out your **workflows and processes**. What are the key processes in your organisation?",
-    review: "Let's **review** everything we've gathered. Ready to generate your org chart?",
-  };
-
-  const defaultGuidance = stepQuestions[currentStep] || stepQuestions.intro;
+  const promptLower = prompt.toLowerCase();
   
-  // Check if we have enough data to show a preview
-  const hasOrgName = orgData?.name || prompt.toLowerCase().includes('company') || prompt.toLowerCase().includes('organisation');
-  const hasDepartments = orgData?.departments?.length > 0 || 
-    prompt.toLowerCase().includes('engineering') || 
-    prompt.toLowerCase().includes('sales') ||
-    prompt.toLowerCase().includes('marketing');
-
-  // Extract org name if mentioned
-  let orgName = orgData?.name || 'My Organisation';
-  const nameMatch = prompt.match(/(?:called|named|is|for)\s+["']?([A-Z][a-zA-Z\s]+?)["']?(?:\s|,|\.|$)/i);
-  if (nameMatch && !orgData?.name) {
+  // Extract org name from prompt if mentioned
+  let orgName = orgData?.name;
+  const nameMatch = prompt.match(/(?:called|named|is|for)\s+["']?([A-Z][a-zA-Z][a-zA-Z\s]*?)["']?(?:\s+[a-z]|,|\.|$)/i);
+  if (nameMatch && !orgName) {
     orgName = nameMatch[1].trim();
   }
-
-  // Generate preview data if we have enough info
-  let previewData = null;
-  if (hasOrgName) {
-    const departments: any[] = [];
-    
-    if (hasDepartments || orgData?.departments?.length > 0) {
-      // Extract departments from prompt
-      const deptKeywords = ['engineering', 'sales', 'marketing', 'operations', 'product', 'hr', 'finance', 'support'];
-      for (const dept of deptKeywords) {
-        if (prompt.toLowerCase().includes(dept) || orgData?.departments?.includes(dept)) {
-          departments.push({
-            name: dept.charAt(0).toUpperCase() + dept.slice(1),
-            description: `${dept.charAt(0).toUpperCase() + dept.slice(1)} department`,
-            head: '',
-            teams: [],
-            workflows: []
-          });
+  
+  // Extract description if provided
+  let orgDescription = orgData?.description || '';
+  const descMatch = prompt.match(/(?:we are|we do|that does|focused on|building|creating|making)\s+["']?([^.]{10,100})/i);
+  if (descMatch && !orgData?.description) {
+    orgDescription = descMatch[1].trim();
+  }
+  
+  // Extract departments from user input
+  const extractedDepartments: string[] = [...(orgData?.departments || [])];
+  const deptKeywords = [
+    'engineering', 'product', 'sales', 'marketing', 'operations', 'hr', 
+    'finance', 'support', 'customer service', 'it', 'technology', 'legal',
+    'research', 'design', 'security', 'quality', 'compliance', 'admin'
+  ];
+  for (const dept of deptKeywords) {
+    if (promptLower.includes(dept) && !extractedDepartments.includes(dept)) {
+      extractedDepartments.push(dept);
+    }
+  }
+  
+  // Extract teams per department
+  const extractedTeams: Record<string, string[]> = orgData?.teams ? { ...orgData.teams } : {};
+  const teamKeywords: Record<string, string[]> = {
+    engineering: ['frontend', 'backend', 'fullstack', 'devops', 'qa', 'mobile', 'data', 'platform', 'infrastructure', 'security'],
+    product: ['product management', 'ux', 'design', 'research', 'analytics'],
+    sales: ['enterprise', 'smb', 'partnerships', 'revenue', 'account management'],
+    marketing: ['content', 'digital', 'brand', 'growth', 'events', 'social media'],
+    operations: ['facilities', 'procurement', 'logistics', 'customer success'],
+    finance: ['accounting', 'treasury', 'tax', 'audit', 'fp&a'],
+    support: ['technical support', 'customer success', 'helpdesk'],
+  };
+  
+  // Extract teams mentioned in prompt
+  for (const [dept, teams] of Object.entries(teamKeywords)) {
+    if (promptLower.includes(dept) || extractedDepartments.includes(dept)) {
+      extractedTeams[dept] = extractedTeams[dept] || [];
+      for (const team of teams) {
+        if (promptLower.includes(team) && !extractedTeams[dept].includes(team)) {
+          extractedTeams[dept].push(team);
         }
       }
     }
-    
-    if (departments.length > 0 || orgData?.departments?.length > 0) {
-      previewData = {
-        name: orgName,
-        description: orgData?.description || 'Organisation description',
-        departments: departments.length > 0 ? departments : [
-          { name: "Operations", description: "Core operations", head: "", teams: [], workflows: [] }
-        ],
-        workflows: []
-      };
+  }
+  
+  // Build departments with teams
+  const departments = extractedDepartments.map(deptName => ({
+    name: deptName.charAt(0).toUpperCase() + deptName.slice(1),
+    description: `${deptName.charAt(0).toUpperCase() + deptName.slice(1)} department`,
+    head: '',
+    teams: (extractedTeams[deptName] || []).map(teamName => ({
+      name: teamName.charAt(0).toUpperCase() + teamName.slice(1) + ' Team',
+      description: `${teamName} team`,
+      teamLead: '',
+      teamMembers: [],
+      tools: [],
+      workflows: []
+    })),
+    workflows: []
+  }));
+  
+  // Generate contextual guidance based on what's been extracted
+  let guidance = '';
+  
+  if (currentStep === 'intro' || currentStep === 'departments') {
+    if (orgName && extractedDepartments.length > 0) {
+      guidance = `Great! I can see you've mentioned ${extractedDepartments.length} department${extractedDepartments.length > 1 ? 's' : ''}: ${extractedDepartments.join(', ')}. Want to tell me about the teams within each department?`;
+    } else if (orgName) {
+      guidance = `Thanks for sharing! To help build your org chart, what departments or teams make up ${orgName}? You can list them out in one message or tell me as much as you know.`;
+    } else {
+      guidance = "Welcome! I'm here to help you map out your organisation. What's the name of your company or team, and what departments or areas does it consist of?";
     }
+  } else if (currentStep === 'teams') {
+    const totalTeams = Object.values(extractedTeams).flat().length;
+    if (totalTeams > 0) {
+      guidance = `Nice! I've captured ${totalTeams} teams so far. What about roles and people - who are the key team leads or important roles in each team?`;
+    } else if (extractedDepartments.length > 0) {
+      guidance = `I've noted your ${extractedDepartments.length} departments. Now let's talk teams - what teams exist within each department? For example, Engineering might have Frontend, Backend, and DevOps teams.`;
+    } else {
+      guidance = "Let's map out your teams. What teams exist in your organisation? You can mention teams across all departments.";
+    }
+  } else if (currentStep === 'roles') {
+    guidance = "Got it! Now let's talk about the tools and technology each team uses. What software, platforms, or tools are important for your teams?";
+  } else if (currentStep === 'tools') {
+    guidance = "Almost done! Last question - what are your key workflows or processes? These could be anything from customer onboarding to feature development to hiring processes.";
+  } else if (currentStep === 'workflows') {
+    guidance = "Perfect! I've gathered a lot of information about your organisation. Ready to generate your org chart?";
+  } else {
+    guidance = "Thanks for sharing! What would you like to add or modify?";
+  }
+  
+  // Build preview data if we have org name
+  let previewData = null;
+  if (orgName && extractedDepartments.length > 0) {
+    previewData = {
+      name: orgName,
+      description: orgDescription || `${orgName} organisation`,
+      departments,
+      workflows: []
+    };
   }
 
   return {
-    guidance: defaultGuidance,
+    guidance,
     previewData,
   };
 }
