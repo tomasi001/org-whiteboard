@@ -7,6 +7,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { Canvas } from "./Canvas";
 import { NodePanel } from "./NodePanel";
 import { CreateWhiteboardDialog } from "./CreateWhiteboardDialog";
+import { ChatWidget } from "./ChatWidget";
 import { Button } from "@/components/ui/Button";
 
 function WhiteboardContent() {
@@ -57,6 +58,9 @@ function WhiteboardContent() {
           <NodePanel />
         </div>
       )}
+
+      {/* AI Chat Widget - bottom right */}
+      <ChatWidget />
     </div>
   );
 }
