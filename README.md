@@ -29,7 +29,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 - TypeScript
 - Tailwind CSS 4
 - React Context for state management
-- Supabase (optional - for persistence)
+- LocalStorage for persistence
+- Google Gemini via server-side API routes
 
 ## Project Structure
 
@@ -49,8 +50,7 @@ src/
 Copy `.env.example` to `.env.local` and configure:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-key
+GEMINI_API_KEY=your-server-side-gemini-key
 ```
 
 ## Build
@@ -58,6 +58,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-key
 ```bash
 # Build for production
 pnpm run build
+```
+
+## Quality Gates
+
+```bash
+# Lint + type check + tests + build
+pnpm run check
+
+# Unit and integration tests
+pnpm run test
+
+# End-to-end tests
+pnpm run test:e2e
 ```
 
 ## License

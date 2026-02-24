@@ -5,7 +5,6 @@ import {
   Users, 
   User, 
   GitBranch, 
-  Cpu, 
   Bot, 
   Zap,
   ChevronRight,
@@ -37,21 +36,6 @@ const nodeIcons: Record<NodeType, React.ReactNode> = {
   process: <GitBranch className="w-5 h-5" />,
   agent: <Bot className="w-5 h-5" />,
   automation: <Zap className="w-5 h-5" />,
-};
-
-const nodeColors: Record<NodeType, string> = {
-  organisation: "bg-blue-50 border-blue-200 hover:bg-blue-100",
-  department: "bg-indigo-50 border-indigo-200 hover:bg-indigo-100",
-  team: "bg-purple-50 border-purple-200 hover:bg-purple-100",
-  teamLead: "bg-violet-50 border-violet-200 hover:bg-violet-100",
-  teamMember: "bg-fuchsia-50 border-fuchsia-200 hover:bg-fuchsia-100",
-  role: "bg-pink-50 border-pink-200 hover:bg-pink-100",
-  subRole: "bg-rose-50 border-rose-200 hover:bg-rose-100",
-  tool: "bg-amber-50 border-amber-200 hover:bg-amber-100",
-  workflow: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100",
-  process: "bg-orange-50 border-orange-200 hover:bg-orange-100",
-  agent: "bg-cyan-50 border-cyan-200 hover:bg-cyan-100",
-  automation: "bg-yellow-50 border-yellow-200 hover:bg-yellow-100",
 };
 
 const workflowColors: Record<WorkflowType, string> = {

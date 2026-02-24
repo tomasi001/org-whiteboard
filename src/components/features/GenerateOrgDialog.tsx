@@ -5,28 +5,11 @@ import { Sparkles, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
-import type { WhiteboardNode } from "@/types";
+import { buildWhiteboardFromTemplate } from "@/lib/orgTemplate";
+import type { OrgTemplate } from "@/types/orgTemplate";
 
 interface GenerateOrgDialogProps {
   onClose: () => void;
-}
-
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
-
-function buildNode(type: string, name: string, description?: string, extra?: Partial<WhiteboardNode>): WhiteboardNode {
-  return {
-    id: generateId(),
-    type: type as any,
-    name,
-    description: description || '',
-    children: extra?.children || [],
-    position: { x: 0, y: 0 },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...extra,
-  };
 }
 
 export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
@@ -52,76 +35,21 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate organization');
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error ?? "Failed to generate organization");
       }
 
-      const generated = await response.json();
-      
-      const buildFromTemplate = (template: any): WhiteboardNode => {
-        const departments = template.departments?.map((dept: any) => {
-          const teams = dept.teams?.map((team: any) => {
-            const children: WhiteboardNode[] = [];
-            
-            if (team.teamLead) {
-              children.push(buildNode('teamLead', team.teamLead));
-            }
-            
-            if (team.teamMembers) {
-              team.teamMembers.forEach((member: string) => {
-                children.push(buildNode('teamMember', member));
-              });
-            }
-            
-            if (team.tools) {
-              team.tools.forEach((tool: string) => {
-                children.push(buildNode('tool', tool));
-              });
-            }
-            
-            if (team.workflows) {
-              team.workflows.forEach((wf: any) => {
-                const processes = wf.processes?.map((proc: any) => {
-                  const agents = proc.agents?.map((agent: any) => {
-                    const automations = agent.automations?.map((auto: string) => 
-                      buildNode('automation', auto)
-                    ) || [];
-                    return buildNode('agent', agent.name, agent.description, { children: automations });
-                  }) || [];
-                  return buildNode('process', proc.name, proc.description, { children: agents });
-                }) || [];
-                children.push(buildNode('workflow', wf.name, wf.description, { 
-                  workflowType: wf.type,
-                  children: processes 
-                }));
-              });
-            }
-            
-            return buildNode('team', team.name, team.description, { children });
-          }) || [];
-          
-          return buildNode('department', dept.name, dept.description, { 
-            departmentHead: dept.head,
-            children: teams 
-          });
-        }) || [];
-        
-        return buildNode('organisation', template.name, template.description, { children: departments });
-      };
-
-      const whiteboard = {
-        id: generateId(),
-        name: generated.name,
-        description: generated.description,
-        rootNode: buildFromTemplate(generated),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: "user",
-      };
+      const generated = (await response.json()) as OrgTemplate;
+      const whiteboard = buildWhiteboardFromTemplate(generated);
 
       setCurrentWhiteboard(whiteboard);
       onClose();
     } catch (err) {
-      setError("Failed to generate organization. Please try again.");
+      const message =
+        err instanceof Error ? err.message : "Failed to generate organization.";
+      setError(message);
       console.error(err);
     } finally {
       setIsLoading(false);

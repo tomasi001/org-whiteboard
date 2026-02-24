@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import type { WhiteboardNode } from "@/types";
-import { NodeCard } from "./NodeCard";
 import { ZoomIn, ZoomOut, Maximize2, X, Expand } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 

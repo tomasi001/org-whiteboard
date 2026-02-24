@@ -7,37 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import type { NodeType, WorkflowType } from "@/types";
-
-// Define the hierarchy: each type can only have these child types
-const hierarchyRules: Record<NodeType, NodeType[]> = {
-  organisation: ["department", "workflow"],
-  department: ["team", "workflow"],
-  team: ["teamLead", "teamMember", "tool", "workflow"],
-  teamLead: ["subRole", "tool", "workflow"],
-  teamMember: ["subRole", "tool", "workflow"],
-  role: ["subRole", "tool", "workflow"],
-  subRole: ["tool", "workflow"],
-  tool: ["workflow"],
-  workflow: ["process"],
-  process: ["agent"],
-  agent: ["automation"],
-  automation: [],
-};
-
-const nodeTypeLabels: Record<NodeType, string> = {
-  organisation: "Organisation",
-  department: "Department",
-  team: "Team",
-  teamLead: "Team Lead",
-  teamMember: "Team Member",
-  role: "Role",
-  subRole: "Sub Role",
-  tool: "Tool",
-  workflow: "Workflow",
-  process: "Process",
-  agent: "Agent",
-  automation: "Automation",
-};
+import { hierarchyRules, nodeTypeLabels } from "@/lib/hierarchy";
 
 const workflowTypes: { type: WorkflowType; label: string }[] = [
   { type: "agentic", label: "Agentic" },
@@ -45,7 +15,7 @@ const workflowTypes: { type: WorkflowType; label: string }[] = [
 ];
 
 export function NodePanel() {
-  const { selectedNode, breadcrumbs, createNode, updateNode, deleteNode } = useWhiteboard();
+  const { selectedNode, breadcrumbs, createNode, deleteNode } = useWhiteboard();
   const [isAddingNode, setIsAddingNode] = useState(false);
   const [newNodeName, setNewNodeName] = useState("");
   const [newNodeDescription, setNewNodeDescription] = useState("");

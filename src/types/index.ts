@@ -79,3 +79,12 @@ export interface UpdateNodeInput {
   documentationUrl?: string;
   workflowType?: WorkflowType;
 }
+
+export type {
+  OrgTemplate,
+  OrgTemplateAgent,
+  OrgTemplateDepartment,
+  OrgTemplateProcess,
+  OrgTemplateTeam,
+  OrgTemplateWorkflow,
+} from "./orgTemplate";
