@@ -76,16 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(generateMockResponse(prompt));
     }
 
-    // Use Gemini AI with the correct package
+    // Use Gemini AI with @google/genai
     const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: 'gemini-2.5-flash',
       contents: `${SYSTEM_PROMPT}\n\nGenerate an organisational structure for: ${prompt}`,
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      },
     });
 
     const content = response.text;
