@@ -70,10 +70,10 @@ export function NodePanel() {
   }
 
   return (
-    <div className="w-80 bg-white border-l border-slate-200 flex flex-col">
-      <div className="p-4 border-b border-slate-200">
+    <div className="w-80 bg-black/20 backdrop-blur-md border-l border-white/20 flex flex-col">
+      <div className="p-4 border-b border-white/20">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">Details</h2>
+          <h2 className="font-roundo lowercase tracking-wide text-cardzzz-cream">details</h2>
           <Button 
             variant="ghost" 
             size="icon"
@@ -95,22 +95,22 @@ export function NodePanel() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-slate-700">Type</label>
+                <label className="text-sm font-satoshi text-cardzzz-cream">Type</label>
                 <select
                   value={newNodeType}
                   onChange={(e) => setNewNodeType(e.target.value as NodeType)}
-                  className="w-full mt-1 h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
+                  className="w-full mt-1 h-[54px] px-3 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-sm text-cardzzz-cream focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
                 >
                   {validChildTypes.map((type) => (
                     <option key={type} value={type}>{nodeTypeLabels[type]}</option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-cardzzz-cream/75 mt-1 font-satoshi">
                   Adding to: {nodeTypeLabels[currentNode?.type] || 'Root'}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700">Name</label>
+                <label className="text-sm font-satoshi text-cardzzz-cream">Name</label>
                 <Input
                   value={newNodeName}
                   onChange={(e) => setNewNodeName(e.target.value)}
@@ -119,7 +119,7 @@ export function NodePanel() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700">Description</label>
+                <label className="text-sm font-satoshi text-cardzzz-cream">Description</label>
                 <Input
                   value={newNodeDescription}
                   onChange={(e) => setNewNodeDescription(e.target.value)}
@@ -129,7 +129,7 @@ export function NodePanel() {
               </div>
               {newNodeType === "department" && (
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Department Head</label>
+                  <label className="text-sm font-satoshi text-cardzzz-cream">Department Head</label>
                   <Input
                     value={newNodeDepartmentHead}
                     onChange={(e) => setNewNodeDepartmentHead(e.target.value)}
@@ -140,11 +140,11 @@ export function NodePanel() {
               )}
               {(newNodeType === "workflow" || newNodeType === "process") && (
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Workflow Type</label>
+                  <label className="text-sm font-satoshi text-cardzzz-cream">Workflow Type</label>
                   <select
                     value={newNodeWorkflowType}
                     onChange={(e) => setNewNodeWorkflowType(e.target.value as WorkflowType | "")}
-                    className="w-full mt-1 h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
+                    className="w-full mt-1 h-[54px] px-3 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-sm text-cardzzz-cream focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
                   >
                     <option value="">Select type</option>
                     {workflowTypes.map(({ type, label }) => (
@@ -184,31 +184,31 @@ export function NodePanel() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <span className="text-xs font-medium text-slate-500 uppercase">Type</span>
-                <p className="text-sm text-slate-800 capitalize">{selectedNode.type}</p>
+                <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Type</span>
+                <p className="text-sm text-cardzzz-cream capitalize font-satoshi">{selectedNode.type}</p>
               </div>
               {selectedNode.description && (
                 <div>
-                  <span className="text-xs font-medium text-slate-500 uppercase">Description</span>
-                  <p className="text-sm text-slate-800">{selectedNode.description}</p>
+                  <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Description</span>
+                  <p className="text-sm text-cardzzz-cream font-satoshi">{selectedNode.description}</p>
                 </div>
               )}
               {selectedNode.departmentHead && (
                 <div>
-                  <span className="text-xs font-medium text-slate-500 uppercase">Department Head</span>
-                  <p className="text-sm text-slate-800">{selectedNode.departmentHead}</p>
+                  <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Department Head</span>
+                  <p className="text-sm text-cardzzz-cream font-satoshi">{selectedNode.departmentHead}</p>
                 </div>
               )}
               {selectedNode.workflowType && (
                 <div>
-                  <span className="text-xs font-medium text-slate-500 uppercase">Workflow Type</span>
-                  <p className="text-sm text-slate-800 capitalize">{selectedNode.workflowType}</p>
+                  <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Workflow Type</span>
+                  <p className="text-sm text-cardzzz-cream capitalize font-satoshi">{selectedNode.workflowType}</p>
                 </div>
               )}
               {selectedNode.children.length > 0 && (
                 <div>
-                  <span className="text-xs font-medium text-slate-500 uppercase">Contains</span>
-                  <p className="text-sm text-slate-800">
+                  <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Contains</span>
+                  <p className="text-sm text-cardzzz-cream font-satoshi">
                     {selectedNode.children.length} {selectedNode.children.length === 1 ? "item" : "items"}
                   </p>
                 </div>
@@ -226,7 +226,7 @@ export function NodePanel() {
         {/* Current Level Info */}
         {!selectedNode && !isAddingNode && (
           <div className="text-center py-8">
-            <p className="text-slate-500 text-sm">
+            <p className="text-cardzzz-cream/80 text-sm font-satoshi">
               Select an item to view details, or click the + button to add a new item.
             </p>
           </div>

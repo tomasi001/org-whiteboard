@@ -184,26 +184,26 @@ export function ChatWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-full shadow-lg transition-all hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 h-[54px] py-[20px] px-[14px] bg-cardzzz-cream text-cardzzz-accent rounded-[16.168px] border border-cardzzz-cream/50 shadow-[0_4px_4px_0_rgba(0,0,0,0.25)] transition-all hover:opacity-90"
       >
         <MessageCircle className="w-5 h-5" />
-        <span className="text-sm font-medium">Chat</span>
+        <span className="font-roundo lowercase text-[19px] font-bold">chat</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-96 h-[500px] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 bg-violet-600 text-white">
+    <div className="fixed bottom-6 right-6 z-50 w-96 h-[500px] flex flex-col bg-black/20 backdrop-blur-md rounded-[16.168px] shadow-[0_8px_30px_rgba(0,0,0,0.25)] border border-white/20 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-white/20 text-cardzzz-cream">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
-          <span className="font-semibold">AI Assistant</span>
+          <span className="font-roundo lowercase tracking-wide">ai assistant</span>
         </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsOpen(false)}
-          className="text-white hover:bg-violet-700"
+          className="text-cardzzz-cream"
         >
           <X className="w-4 h-4" />
         </Button>
@@ -218,8 +218,8 @@ export function ChatWidget() {
             <div
               className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
                 message.role === "user"
-                  ? "bg-violet-600 text-white rounded-br-none"
-                  : "bg-slate-100 text-slate-800 rounded-bl-none"
+                  ? "bg-cardzzz-cream text-cardzzz-accent rounded-br-none font-satoshi"
+                  : "bg-white/10 border border-white/20 text-cardzzz-cream rounded-bl-none font-satoshi"
               }`}
             >
               {message.content}
@@ -228,15 +228,15 @@ export function ChatWidget() {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-slate-100 px-3 py-2 rounded-lg rounded-bl-none">
-              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+            <div className="bg-white/10 border border-white/20 px-3 py-2 rounded-lg rounded-bl-none">
+              <Loader2 className="w-4 h-4 animate-spin text-cardzzz-cream" />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-3 border-t border-slate-200">
+      <div className="p-3 border-t border-white/20">
         <div className="flex gap-2">
           <input
             type="text"
@@ -244,14 +244,10 @@ export function ChatWidget() {
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && handleSend()}
             placeholder="Type a message..."
-            className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
+            className="flex-1 h-[54px] px-3 py-2 text-sm text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream border border-white/20 rounded-[16.168px] bg-black/20 backdrop-blur-md font-satoshi focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70 focus:border-cardzzz-cream"
             disabled={isLoading}
           />
-          <Button
-            onClick={handleSend}
-            disabled={isLoading || !input.trim()}
-            className="bg-violet-600 hover:bg-violet-700"
-          >
+          <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
             <Send className="w-4 h-4" />
           </Button>
         </div>
@@ -259,4 +255,3 @@ export function ChatWidget() {
     </div>
   );
 }
-

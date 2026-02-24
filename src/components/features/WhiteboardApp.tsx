@@ -48,10 +48,12 @@ function WhiteboardContent() {
 
       {!isCanvasOnlyMode && (
         <>
-          <header className="fixed top-0 left-0 right-0 h-14 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center px-4 z-50">
-            <h1 className="font-semibold text-slate-800">Org Whiteboard</h1>
-            <span className="mx-2 text-slate-300">/</span>
-            <span className="text-slate-600">{currentWhiteboard.name}</span>
+          <header className="fixed top-0 left-0 right-0 h-14 bg-black/20 backdrop-blur-md border-b border-white/20 flex items-center px-4 z-50">
+            <h1 className="font-roundo lowercase tracking-wide text-cardzzz-cream">
+              org whiteboard
+            </h1>
+            <span className="mx-2 text-cardzzz-cream/50">/</span>
+            <span className="text-cardzzz-cream/85 font-satoshi">{currentWhiteboard.name}</span>
             <div className="ml-auto flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -66,7 +68,7 @@ function WhiteboardContent() {
                 size="sm"
                 onClick={handleReset}
                 title="Start over"
-                className="text-slate-500 hover:text-red-500"
+                className="text-cardzzz-cream hover:text-cardzzz-cream"
               >
                 <RotateCcw className="w-4 h-4" />
               </Button>
@@ -106,7 +108,7 @@ function WhiteboardContent() {
       {isCanvasOnlyMode && (
         <div className="fixed top-4 left-4 z-50">
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
             onClick={() => setIsCanvasOnlyMode(false)}
             title="Exit canvas-only mode"

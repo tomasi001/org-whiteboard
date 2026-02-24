@@ -246,10 +246,14 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
 
   if (!currentWhiteboard || !currentNode) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-50 z-0">
+      <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-0">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-700">No Whiteboard Loaded</h2>
-          <p className="text-slate-500 mt-2">Create a new whiteboard to get started</p>
+          <h2 className="text-xl font-roundo lowercase tracking-wide text-cardzzz-cream">
+            no whiteboard loaded
+          </h2>
+          <p className="text-cardzzz-cream/80 mt-2 font-satoshi">
+            create a new whiteboard to get started
+          </p>
         </div>
       </div>
     );
@@ -258,7 +262,7 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
   return (
     <div
       ref={canvasRef}
-      className="fixed inset-0 z-0 bg-slate-50"
+      className="fixed inset-0 z-0 bg-black/10"
       style={{
         cursor: dragStart ? "grabbing" : "grab",
         touchAction: "none",
@@ -271,7 +275,7 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
       onClick={() => selectNode(null)}
     >
       <div
-        className={`fixed right-4 z-30 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-md p-2 ${
+        className={`fixed right-4 z-30 flex items-center gap-2 bg-black/20 backdrop-blur-md border border-white/20 rounded-[16.168px] shadow-[0_8px_30px_rgba(0,0,0,0.25)] p-2 ${
           isCanvasOnlyMode ? "top-4" : "top-20"
         }`}
       >
@@ -295,7 +299,9 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
         <Button variant="ghost" size="icon" onClick={handleZoomOut} title="Zoom out">
           <ZoomOut className="w-4 h-4" />
         </Button>
-        <span className="text-sm font-medium w-12 text-center">{Math.round(zoom * 100)}%</span>
+        <span className="text-sm font-satoshi text-cardzzz-cream w-12 text-center">
+          {Math.round(zoom * 100)}%
+        </span>
         <Button variant="ghost" size="icon" onClick={handleZoomIn} title="Zoom in">
           <ZoomIn className="w-4 h-4" />
         </Button>
@@ -335,10 +341,10 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
                   y1={nodeCenterY - bounds.minY + 100}
                   x2={childCenterX - bounds.minX + 100}
                   y2={childCenterY - bounds.minY + 100}
-                  stroke="#94a3b8"
+                  stroke="#fffadc"
                   strokeWidth="2"
                   strokeLinecap="round"
-                  opacity="0.7"
+                  opacity="0.25"
                 />
               );
             });
@@ -366,4 +372,3 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
     </div>
   );
 }
-

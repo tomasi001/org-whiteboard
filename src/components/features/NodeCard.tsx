@@ -39,8 +39,8 @@ const nodeIcons: Record<NodeType, React.ReactNode> = {
 };
 
 const workflowColors: Record<WorkflowType, string> = {
-  agentic: "bg-violet-100 border-violet-300",
-  linear: "bg-slate-100 border-slate-300",
+  agentic: "bg-black/20 border-white/20",
+  linear: "bg-white/10 border-white/20",
 };
 
 export function NodeCard({ node }: NodeCardProps) {
@@ -68,48 +68,47 @@ export function NodeCard({ node }: NodeCardProps) {
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className={cn(
-        "relative flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all duration-300 min-w-[240px] group",
-        "bg-white/70 backdrop-blur-xl",
-        "border-white/50",
-        "shadow-lg shadow-slate-200/50",
-        "hover:bg-white/80 hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-0.5",
-        isSelected && "ring-2 ring-slate-400/50 ring-offset-2 ring-offset-transparent bg-white/90",
+        "relative flex items-start gap-3 p-4 rounded-[16.168px] border cursor-pointer transition-all duration-300 min-w-[240px] group",
+        "bg-white/10 backdrop-blur-md",
+        "border-white/20",
+        "shadow-[0_8px_30px_rgba(0,0,0,0.25)]",
+        "hover:bg-white/15 hover:-translate-y-0.5",
+        isSelected && "ring-2 ring-cardzzz-cream/50 ring-offset-2 ring-offset-transparent bg-black/20",
         node.workflowType && workflowColors[node.workflowType]
       )}
-      style={{
-        boxShadow: '0 4px 24px -1px rgba(0, 0, 0, 0.06), 0 2px 8px -1px rgba(0, 0, 0, 0.04), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
-      }}
     >
       {/* Immediate hover label - shows type instantly on hover */}
-      <div className="absolute -top-8 left-0 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+      <div className="absolute -top-8 left-0 px-2 py-1 bg-black/80 text-cardzzz-cream text-xs rounded-[10px] opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10 font-satoshi">
         {nodeTypeLabel}
       </div>
       <div className={cn(
-        "flex-shrink-0 p-2 rounded-lg",
-        node.type === "organisation" && "bg-blue-100 text-blue-600",
-        node.type === "department" && "bg-indigo-100 text-indigo-600",
-        node.type === "team" && "bg-purple-100 text-purple-600",
-        node.type === "teamLead" && "bg-violet-100 text-violet-600",
-        node.type === "teamMember" && "bg-fuchsia-100 text-fuchsia-600",
-        node.type === "role" && "bg-pink-100 text-pink-600",
-        node.type === "subRole" && "bg-rose-100 text-rose-600",
-        node.type === "tool" && "bg-amber-100 text-amber-600",
-        node.type === "workflow" && "bg-emerald-100 text-emerald-600",
-        node.type === "process" && "bg-orange-100 text-orange-600",
-        node.type === "agent" && "bg-cyan-100 text-cyan-600",
-        node.type === "automation" && "bg-yellow-100 text-yellow-600"
+        "flex-shrink-0 p-2 rounded-[12px]",
+        node.type === "organisation" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "department" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "team" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "teamLead" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "teamMember" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "role" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "subRole" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "tool" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "workflow" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "process" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "agent" && "bg-cardzzz-cream/20 text-cardzzz-cream",
+        node.type === "automation" && "bg-cardzzz-cream/20 text-cardzzz-cream"
       )}>
         {nodeIcons[node.type]}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-slate-900 truncate">{node.name}</h3>
+          <h3 className="font-roundo lowercase font-bold text-cardzzz-cream truncate">
+            {node.name}
+          </h3>
           {node.workflowType && (
             <span className={cn(
-              "text-xs px-2 py-0.5 rounded-full font-medium",
-              node.workflowType === "agentic" && "bg-violet-200 text-violet-700",
-              node.workflowType === "linear" && "bg-slate-200 text-slate-700"
+              "text-xs px-2 py-0.5 rounded-full font-satoshi border border-white/20",
+              node.workflowType === "agentic" && "bg-cardzzz-accent/30 text-cardzzz-cream",
+              node.workflowType === "linear" && "bg-black/20 text-cardzzz-cream"
             )}>
               {node.workflowType}
             </span>
@@ -117,18 +116,20 @@ export function NodeCard({ node }: NodeCardProps) {
         </div>
         
         {node.description && (
-          <p className="text-sm text-slate-600 mt-1 line-clamp-2">{node.description}</p>
+          <p className="text-sm text-cardzzz-cream/85 mt-1 line-clamp-2 font-satoshi">
+            {node.description}
+          </p>
         )}
 
         <div className="flex items-center gap-2 mt-2">
           {node.departmentHead && (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1 text-xs text-cardzzz-cream/80 font-satoshi">
               <UserCircle className="w-3 h-3" />
               {node.departmentHead}
             </span>
           )}
           {hasChildren && (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1 text-xs text-cardzzz-cream/80 font-satoshi">
               <Users className="w-3 h-3" />
               {node.children.length} {node.children.length === 1 ? "item" : "items"}
             </span>
@@ -138,7 +139,7 @@ export function NodeCard({ node }: NodeCardProps) {
 
       {hasChildren && (
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <ChevronRight className="w-5 h-5 text-slate-400" />
+          <ChevronRight className="w-5 h-5 text-cardzzz-cream/60" />
         </div>
       )}
     </div>

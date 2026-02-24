@@ -69,42 +69,46 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
       <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-violet-500" />
-            Generate Organization with AI
+            <Sparkles className="w-5 h-5 text-cardzzz-accent" />
+            <span className="font-roundo lowercase tracking-wide text-cardzzz-cream">
+              generate organization with ai
+            </span>
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 text-cardzzz-cream" />
           </Button>
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-cardzzz-cream/85 font-satoshi">
             Describe your organization in detail. The AI will think about the structure and generate a comprehensive hierarchy with departments, teams, roles, tools, workflows, and automations.
           </p>
 
           <div>
-            <label className="text-sm font-medium text-slate-700">Organization Description</label>
+            <label className="text-sm font-satoshi text-cardzzz-cream">Organization Description</label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Describe your organization (e.g., 'A tech startup with 50 employees focused on AI products. We have an engineering team, product team, and sales team...')"
-              className="w-full mt-1 h-32 px-3 py-2 rounded-md border border-slate-300 bg-white text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+              className="w-full mt-1 h-32 px-3 py-2 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream text-sm font-satoshi resize-none focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70 focus:border-cardzzz-cream"
               disabled={isLoading}
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <p className="text-sm text-cardzzz-cream font-satoshi bg-cardzzz-accent/40 px-3 py-2 rounded-[12px] border border-cardzzz-cream/40">
+              {error}
+            </p>
           )}
 
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-2">Quick Examples</p>
+            <p className="text-sm font-satoshi text-cardzzz-cream mb-2">Quick Examples</p>
             <div className="flex flex-wrap gap-2">
               {examplePrompts.map((example, i) => (
                 <button
                   key={i}
                   onClick={() => setPrompt(example)}
-                  className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-violet-100 hover:text-violet-700 rounded-full text-slate-600 transition-colors"
+                  className="text-xs px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 rounded-[12px] text-cardzzz-cream font-satoshi transition-colors"
                   disabled={isLoading}
                 >
                   {example.length > 50 ? example.substring(0, 50) + '...' : example}
@@ -118,7 +122,7 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleGenerate} disabled={isLoading || !prompt.trim()} className="bg-violet-600 hover:bg-violet-700">
+          <Button onClick={handleGenerate} disabled={isLoading || !prompt.trim()}>
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

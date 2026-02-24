@@ -8,6 +8,30 @@ When the user asks to "initialize project" or uses the "init" command, you MUST 
 2. **Path of Discovery:** Always read existing configuration files before suggesting changes.
 3. **Bash Protocol:** In bash code blocks, do NOT add comments (they break on-click execution).
 4. **Spelling:** Use British/South African spelling (e.g., colour, programme, centre) for all documentation and UI labels.
+5. **UI Spec Compliance:** Follow project UI styling standards exactly, with special attention to text visibility and contrast in all input states.
+
+## UI Styling Standards (Imported Rule Set)
+
+1. **Typography**
+   - Use `font-satoshi` for body/labels.
+   - Use `font-roundo` for headings.
+   - Any text using `font-roundo` must be lowercase.
+2. **Glassmorphism Formula**
+   - Background: `bg-white/10` or `bg-black/20`
+   - Blur: `backdrop-blur-md`
+   - Border: `border border-white/20`
+3. **Button State Pattern**
+   - Inactive: `border border-cardzzz-cream`, `bg-transparent`, `text-cardzzz-cream`, `cursor-not-allowed`, no shadow.
+   - Active: `bg-cardzzz-cream`, `text-cardzzz-accent`, optional `border border-cardzzz-cream/50`, shadow `shadow-[0_4px_4px_0_rgba(0,0,0,0.25)]`, `cursor-pointer`, `hover:opacity-90`.
+   - Base style: rounded corners, smooth transitions, consistent size and spacing.
+4. **Naming Convention**
+   - `Comp_` for reusable atoms.
+   - `Layout_` for page-level containers.
+   - `Chat_` for chat-specific elements.
+5. **Precision**
+   - Match exact pixel specs using arbitrary Tailwind values when required (e.g., `p-[13px]`).
+6. **Visibility Mandate**
+   - Placeholder text and entered text must remain highly legible against the field background in all states (default, focus, disabled, autofill).
 
 ## Initialization Process:
 
