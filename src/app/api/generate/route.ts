@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
 
-const SYSTEM_PROMPT = `You are an expert organizational designer AI that thinks deeply about organizational structures. Your task is to generate comprehensive, realistic organizational structures based on user descriptions.
+const SYSTEM_PROMPT = `You are an expert organisational designer AI that thinks deeply about organisational structures. Your task is to generate comprehensive, realistic organisational structures based on user descriptions.
 
 You must output valid JSON that matches this exact structure:
 {
-  "name": "Organization Name",
+  "name": "Organisation Name",
   "description": "Brief description",
   "departments": [
     {
@@ -47,9 +48,9 @@ You must output valid JSON that matches this exact structure:
 }
 
 Think carefully about:
-1. The type of organization (tech, healthcare, finance, retail, manufacturing, etc.)
+1. The type of organisation (tech, healthcare, finance, retail, manufacturing, etc.)
 2. The realistic size and complexity based on the description
-3. Modern tools and systems that organization would use
+3. Modern tools and systems that organisation would use
 4. Whether workflows should be agentic (AI-driven) or linear (sequential) based on the task
 5. Realistic job titles and roles
 6. Practical automations that make sense
@@ -66,55 +67,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Check for OpenAI API key
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Check for Gemini API key
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     
     if (!apiKey) {
       // Fallback to mock response for development
+      console.log('No GEMINI_API_KEY found, using mock response');
       return NextResponse.json(generateMockResponse(prompt));
     }
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Generate an organizational structure for: ${prompt}` }
-        ],
+    // Use Gemini AI with the correct package
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-05-20',
+      contents: `${SYSTEM_PROMPT}\n\nGenerate an organisational structure for: ${prompt}`,
+      config: {
         temperature: 0.7,
-        max_tokens: 4000,
-        response_format: { type: 'json_object' },
-      }),
+        maxOutputTokens: 4096,
+      },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      return NextResponse.json(generateMockResponse(prompt));
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
+    const content = response.text;
 
     if (!content) {
       return NextResponse.json(generateMockResponse(prompt));
     }
 
     try {
-      const parsed = JSON.parse(content);
-      return NextResponse.json(parsed);
+      // Try to parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return NextResponse.json(parsed);
+      }
+      return NextResponse.json(generateMockResponse(prompt));
     } catch {
       return NextResponse.json(generateMockResponse(prompt));
     }
   } catch (error) {
     console.error('Generate API error:', error);
-    return NextResponse.json({ error: 'Failed to generate organization' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate organisation' }, { status: 500 });
   }
 }
 
@@ -136,7 +129,7 @@ function generateMockResponse(prompt: string) {
 
   // Extract name from prompt
   const nameMatch = prompt.match(/(?:called|named|for)\s+["']?([A-Z][a-zA-Z\s]+?)["']?(?:\s|$|,|\.)/i);
-  const orgName = nameMatch ? nameMatch[1].trim() : "My Organization";
+  const orgName = nameMatch ? nameMatch[1].trim() : "My Organisation";
 
   const templates: Record<string, any> = {
     tech: {
@@ -186,34 +179,12 @@ function generateMockResponse(prompt: string) {
           teams: [
             {
               name: "Product Management",
-              description: "Product roadmap and feature prioritization",
+              description: "Product roadmap and feature prioritisation",
               teamLead: "Senior PM",
               teamMembers: ["Product Manager", "Business Analyst", "UX Researcher"],
               tools: ["Jira", "Confluence", "Amplitude", "Miro", "Notion"],
               workflows: [
                 { name: "Roadmap Planning", type: "linear", description: "Quarterly roadmap development", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "Sales",
-          description: "Revenue generation and client relationships",
-          head: "VP of Sales",
-          teams: [
-            {
-              name: "Enterprise Sales",
-              description: "Large account acquisition",
-              teamLead: "Enterprise Sales Director",
-              teamMembers: ["Account Executive", "Solutions Engineer", "Sales Development Rep"],
-              tools: ["Salesforce", "LinkedIn Sales Navigator", "Gong", "Outreach"],
-              workflows: [
-                { name: "Lead Qualification", type: "agentic", description: "AI-powered lead scoring and qualification", processes: [
-                  { name: "Lead Scoring", description: "Score and prioritize leads", agents: [
-                    { name: "Lead Scoring Agent", description: "AI that scores leads based on behavior", automations: ["Enrich lead data", "Calculate lead score", "Route to sales rep"] }
-                  ]}
-                ]}
               ]
             }
           ],
@@ -224,7 +195,7 @@ function generateMockResponse(prompt: string) {
     },
     healthcare: {
       name: orgName,
-      description: "Healthcare organization providing medical services",
+      description: "Healthcare organisation providing medical services",
       departments: [
         {
           name: "Clinical Services",
@@ -243,31 +214,13 @@ function generateMockResponse(prompt: string) {
             }
           ],
           workflows: []
-        },
-        {
-          name: "Nursing",
-          description: "Patient care coordination",
-          head: "Chief Nursing Officer",
-          teams: [
-            {
-              name: "Inpatient Care",
-              description: "Hospital ward nursing",
-              teamLead: "Nurse Manager",
-              teamMembers: ["Registered Nurse", "Nurse Practitioner", "Nursing Assistant", "Care Coordinator"],
-              tools: ["Epic Care", "Pyxis", "Vocera", "Alaris"],
-              workflows: [
-                { name: "Patient Handoff", type: "linear", description: "Shift change patient handover", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
         }
       ],
       workflows: []
     },
     finance: {
       name: orgName,
-      description: "Financial services organization",
+      description: "Financial services organisation",
       departments: [
         {
           name: "Investment Banking",
@@ -278,32 +231,10 @@ function generateMockResponse(prompt: string) {
               name: "M&A Advisory",
               description: "Merger and acquisition transactions",
               teamLead: "M&A Director",
-              teamMembers: ["VP - M&A", "Associate", "Analyst", "Intern"],
+              teamMembers: ["VP - M&A", "Associate", "Analyst"],
               tools: ["Bloomberg", "Capital IQ", "DealCloud", "FactSet"],
               workflows: [
                 { name: "Deal Pipeline", type: "linear", description: "Track and manage M&A opportunities", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "Asset Management",
-          description: "Portfolio management and investments",
-          head: "Chief Investment Officer",
-          teams: [
-            {
-              name: "Portfolio Management",
-              description: "Investment strategy and execution",
-              teamLead: "Senior Portfolio Manager",
-              teamMembers: ["Portfolio Manager", "Research Analyst", "Risk Analyst", "Quant Analyst"],
-              tools: ["Bloomberg Terminal", "FactSet", "BlackRock Aladdin", "Wind"],
-              workflows: [
-                { name: "Rebalancing", type: "agentic", description: "AI-assisted portfolio rebalancing", processes: [
-                  { name: "Auto Rebalance", description: "Automated portfolio adjustments", agents: [
-                    { name: "Rebalancing Agent", description: "AI that monitors and rebalances portfolios", automations: ["Monitor drift", "Generate trade suggestions", "Execute trades"] }
-                  ]}
-                ]}
               ]
             }
           ],
@@ -314,7 +245,7 @@ function generateMockResponse(prompt: string) {
     },
     retail: {
       name: orgName,
-      description: "Retail organization with stores and e-commerce",
+      description: "Retail organisation with stores and e-commerce",
       departments: [
         {
           name: "Store Operations",
@@ -325,28 +256,10 @@ function generateMockResponse(prompt: string) {
               name: "Store Management",
               description: "Individual store operations",
               teamLead: "Store Manager",
-              teamMembers: ["Assistant Manager", "Department Lead", "Sales Associate", "Cashier"],
-              tools: ["POS System", "Inventory Management", "Scheduling Software", "Handheld Scanner"],
+              teamMembers: ["Assistant Manager", "Department Lead", "Sales Associate"],
+              tools: ["POS System", "Inventory Management", "Scheduling Software"],
               workflows: [
                 { name: "Daily Opening", type: "linear", description: "Store opening procedures", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "E-commerce",
-          description: "Online sales channel",
-          head: "Head of E-commerce",
-          teams: [
-            {
-              name: "Digital Operations",
-              description: "Website and online sales",
-              teamLead: "E-commerce Manager",
-              teamMembers: ["Web Developer", "Digital Marketing Specialist", "Customer Service Rep", "Content Manager"],
-              tools: ["Shopify", "Google Analytics", "Klaviyo", "Zendesk"],
-              workflows: [
-                { name: "Order Fulfillment", type: "linear", description: "Online order processing", processes: [] }
               ]
             }
           ],
@@ -357,7 +270,7 @@ function generateMockResponse(prompt: string) {
     },
     manufacturing: {
       name: orgName,
-      description: "Manufacturing organization",
+      description: "Manufacturing organisation",
       departments: [
         {
           name: "Production",
@@ -368,32 +281,10 @@ function generateMockResponse(prompt: string) {
               name: "Assembly Line",
               description: "Product assembly operations",
               teamLead: "Production Supervisor",
-              teamMembers: ["Assembly Technician", "Quality Inspector", "Machine Operator", "Maintenance Tech"],
-              tools: ["MES System", "Quality Management", "IoT Sensors", "CMMS"],
+              teamMembers: ["Assembly Technician", "Quality Inspector", "Machine Operator"],
+              tools: ["MES System", "Quality Management", "IoT Sensors"],
               workflows: [
-                { name: "Production Scheduling", type: "agentic", description: "AI-optimized production scheduling", processes: [
-                  { name: "Schedule Optimization", description: "Optimize production schedules", agents: [
-                    { name: "Scheduling Agent", description: "AI that optimizes production schedules", automations: ["Analyze demand", "Optimize resource allocation", "Adjust for maintenance"] }
-                  ]}
-                ]}
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "Supply Chain",
-          description: "Procurement and logistics",
-          head: "Chief Supply Chain Officer",
-          teams: [
-            {
-              name: "Procurement",
-              description: "Raw material sourcing",
-              teamLead: "Procurement Manager",
-              teamMembers: ["Buyer", "Supplier Relations", "Contract Manager", "Logistics Coordinator"],
-              tools: ["SAP", "Coupa", "Supplier Portal", "Transportation Management"],
-              workflows: [
-                { name: "Purchase Order", type: "linear", description: "Procurement request and approval", processes: [] }
+                { name: "Production Scheduling", type: "agentic", description: "AI-optimised production scheduling", processes: [] }
               ]
             }
           ],
@@ -404,7 +295,7 @@ function generateMockResponse(prompt: string) {
     },
     generic: {
       name: orgName,
-      description: "General business organization",
+      description: "General business organisation",
       departments: [
         {
           name: "Operations",
@@ -419,42 +310,6 @@ function generateMockResponse(prompt: string) {
               tools: ["Project Management", "Communication Tool", "Documentation"],
               workflows: [
                 { name: "Daily Operations", type: "linear", description: "Standard operating procedures", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "Human Resources",
-          description: "People and culture",
-          head: "CHRO",
-          teams: [
-            {
-              name: "Talent Acquisition",
-              description: "Recruiting and hiring",
-              teamLead: "Recruiting Manager",
-              teamMembers: ["Recruiter", "HR Coordinator", "Onboarding Specialist"],
-              tools: ["ATS", "LinkedIn", "HRIS", "Background Check System"],
-              workflows: [
-                { name: "Hiring Process", type: "linear", description: "End-to-end recruitment workflow", processes: [] }
-              ]
-            }
-          ],
-          workflows: []
-        },
-        {
-          name: "Finance",
-          description: "Financial management",
-          head: "CFO",
-          teams: [
-            {
-              name: "Accounting",
-              description: "Financial reporting and accounting",
-              teamLead: "Controller",
-              teamMembers: ["Accountant", "Financial Analyst", "AP/AR Specialist"],
-              tools: ["QuickBooks", "Excel", "Expense Management", "Banking Portal"],
-              workflows: [
-                { name: "Month-end Close", type: "linear", description: "Monthly financial closing process", processes: [] }
               ]
             }
           ],

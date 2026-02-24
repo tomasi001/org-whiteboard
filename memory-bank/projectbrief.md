@@ -1,26 +1,28 @@
-# Project Brief
+# Project Brief: Org Whiteboard
 
-## Project Name
-Org Whiteboard
+## Overview
+An interactive organisational whiteboarding tool that enables users to visualise and navigate nested hierarchical structures within their organisation. The tool provides drill-down capabilities from organisation level down to automation level, with support for both agentic and linear workflow types.
 
-## Core Objective
-Build an interactive organisational whiteboarding tool for workflow mapping and process mapping, enabling users to create nested hierarchical structures with drill-down capabilities for departments, roles, and workflows.
+## Core Requirements
+1. **Nested Hierarchical Structures**: Organisation → Department → Team → Team Lead/Team Member → Sub Role → Tool → Workflow → Process → Agent → Automation
+2. **Interactive Whiteboarding**: Click/drag pan, scroll/wheel zoom, double-click to drill down
+3. **Workflow Types**: Support for both agentic (AI-driven) and linear (sequential) workflows
+4. **Tool Integration**: Ability to add tools (ClickUp, Gmail, etc.) at team/role levels
+5. **AI-Powered Generation**: Generate organisational structures from text prompts using Gemini AI
+6. **Conversational Updates**: Chat widget for real-time modifications
 
-## Key Features
-1. **Nested Structure Visualisation**: Click into departments, teams, and roles to gain deeper insight
-2. **Interactive Whiteboarding**: Rich interactive canvas for visualising organisational structures
-3. **Workflow Mapping**: Map both agentically orchestrated and linearly automated processes
-4. **Documentation Previews**: View documentation directly within the whiteboard
-5. **Deep Drill-down**: Navigate through nested hierarchies with ease
+## Goals
+- Replace ClickUp whiteboarding with a better alternative
+- Enable visual workflow mapping and process mapping
+- Support deep navigation into organisational structures
+- Provide AI-assisted organisation design
 
 ## Target Users
-- Teams needing workflow mapping
-- Organisations doing process mapping
-- Anyone needing to visualise nested organisational structures
+- Teams needing to visualise organisational structures
+- Operations teams doing workflow mapping
+- Anyone needing to understand complex organisational hierarchies
 
-## Success Criteria
-- Users can create whiteboards with nested hierarchies
-- Users can drill down into departments/teams/roles
-- Users can add agentic or linear workflow types
-- Users can link documentation to nodes
-- Build passes without errors
+## Success Metrics
+- Ability to navigate 10+ levels of hierarchy
+- Smooth pan/zoom interactions
+- AI-generated structures that match user intent

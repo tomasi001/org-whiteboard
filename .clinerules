@@ -1,0 +1,684 @@
+# Project Initialization Mode (Trigger: "hey cline, initialize project")
+
+When the user asks to "initialize project" or uses the "init" command, you MUST follow the "Project Initialization Bible" provided below.
+
+## Principal Engineer Scrutiny Rules:
+
+1. **No AI Slop:** Do not provide generic boilerplate without verifying the specific project needs.
+2. **Path of Discovery:** Always read existing configuration files before suggesting changes.
+3. **Bash Protocol:** In bash code blocks, do NOT add comments (they break on-click execution).
+4. **Spelling:** Use British/South African spelling (e.g., colour, programme, centre) for all documentation and UI labels.
+
+## Initialization Process:
+
+Follow these phases strictly:
+
+1. **Foundation:** Execute the "Always Do First" steps (Git, Package Manager, .gitignore).
+2. **Framework Selection:** Walk the developer through the Decision Tree. Do not assume Next.js unless confirmed.
+3. **Auth/DB/AI:** For each section, present the options from the Bible, wait for a decision, then implement.
+4. **Structure:** Mirror the "Project Structure" layout exactly once the stack is chosen.
+5. **CI/CD:** Generate the GitHub Actions yaml only after the build command is confirmed.
+
+# Project Initialization Bible
+
+## A Generic Framework for Starting Any Project
+
+**Version:** 1.0.0  
+**Generated:** February 2026  
+**Purpose:** Reproducible project scaffolding for any tech stack
+
+---
+
+## Table of Contents
+
+1. [Foundation Phase](#1-foundation-phase)
+2. [Framework Selection](#2-framework-selection)
+3. [Authentication Decision](#3-authentication-decision)
+4. [Database & Backend](#4-database--backend)
+5. [AI Integration](#5-ai-integration)
+6. [Styling & UI](#6-styling--ui)
+7. [Project Structure](#7-project-structure)
+8. [CI/CD Pipeline](#8-cicd-pipeline)
+9. [Environment Variables](#9-environment-variables)
+10. [Language & Localization](#10-language--localization)
+11. [Quick Reference](#11-quick-reference)
+
+---
+
+## 1. Foundation Phase
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Start New Project] --> B{Type of Application?}
+    B -->|Web App| C[Continue]
+    B -->|Mobile| D[Consider React Native or Flutter]
+    B -->|API Only| E[Skip UI steps]
+    C --> F{Have Existing Backend?}
+    F -->|Yes| G[Connect to Existing API]
+    F -->|No| H[Choose Backend Strategy]
+```
+
+### Always Do First
+
+1. **Initialize repository:**
+
+   ```bash
+   # Create directory and init git
+   mkdir my-project && cd my-project
+   git init
+
+   # Create initial commit
+   echo "# My Project" > README.md
+   git add -A && git commit -m "Initial commit"
+   ```
+
+2. **Choose package manager:**
+   | Manager | Best For | Install |
+   |---------|----------|---------|
+   | pnpm | Production apps, monorepos | `npm install -g pnpm` |
+   | npm | Universal compatibility | Comes with Node.js |
+   | yarn | Legacy projects | `npm install -g yarn` |
+   | bun | Speed critical, experimental | `curl -fsSL https://bun.sh/install` |
+
+3. **Create .gitignore:**
+
+   ```
+   # Dependencies
+   node_modules/
+
+   # Environment
+   .env
+   .env.local
+
+   # Build output
+   dist/
+   build/
+   .next/
+
+   # IDE
+   .vscode/
+   .idea/
+
+   # OS
+   .DS_Store
+   Thumbs.db
+
+   # Logs
+   *.log
+   npm-debug.log*
+   ```
+
+---
+
+## 2. Framework Selection
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Choose Framework] --> B{Need SEO?}
+    B -->|Yes| C{Need Dynamic Content?}
+    C -->|Yes| D[Next.js]
+    C -->|No| E[Static Site Generator]
+    B -->|No| F{Single Page App?}
+    F -->|Yes| G[React or Vue]
+    F -->|No| H[Legacy or MPA]
+    D --> I{TypeScript Required?}
+    I -->|Yes| J[Use TypeScript]
+    I -->|No| K[TypeScript Recommended]
+```
+
+### Framework Options
+
+| Framework           | Use When                              | Skip When              |
+| ------------------- | ------------------------------------- | ---------------------- |
+| **Next.js**         | SEO needed, full-stack web app        | Simple static site     |
+| **Remix**           | Full-stack, data-heavy                | Need granular control  |
+| **Astro**           | Content-focused, islands architecture | App-like interactivity |
+| **Express/Fastify** | API-only backend                      | Need full framework    |
+| **React**           | SPA, no SSR needed                    | SEO is priority        |
+| **Vue**             | Team prefers Vue syntax               | Team prefers React     |
+
+### Recommended Next.js Init Command
+
+```bash
+npx create-next-app@latest my-project \
+  --typescript \
+  --tailwind \
+  --eslint \
+  --app \
+  --src-dir \
+  --import-alias "@/*" \
+  --use-pnpm \
+  --yes
+```
+
+---
+
+## 3. Authentication Decision
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Authentication] --> B{Need Auth?}
+    B -->|No Auth| C[Skip to next step]
+    B -->|Yes| D{Complexity Level?}
+    D -->|Simple| E[Auth.js / NextAuth]
+    D -->|Complex| F[Custom + Database]
+    D -->|Enterprise| G[Clerk / Auth0]
+    E --> H{Provider?}
+    H -->|Social Only| I[Firebase Auth]
+    H -->|Email/Password| J[Supabase Auth]
+    H -->|Multi-provider| K[Auth.js]
+```
+
+### Auth Options by Use Case
+
+| Scenario               | Recommended        | Alternative   |
+| ---------------------- | ------------------ | ------------- |
+| **Simple, fast setup** | Firebase Auth      | Supabase Auth |
+| **Need custom logic**  | Auth.js (NextAuth) | Custom JWT    |
+| **Enterprise, SSO**    | Clerk              | Auth0         |
+| **No auth needed**     | Skip entirely      | -             |
+
+### Auth Implementation Patterns
+
+#### Option A: Firebase Auth (Simple)
+
+```typescript
+// lib/firebase.ts
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  // ... other config
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+```
+
+#### Option B: Auth.js (Next.js)
+
+```bash
+pnpm add next-auth
+```
+
+```typescript
+// app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+
+const handler = NextAuth({
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+});
+
+export { handler as GET, handler as POST };
+```
+
+---
+
+## 4. Database & Backend
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Database] --> B{Need Database?}
+    B -->|No| C[Skip - Static/Client-only]
+    B -->|Yes| D{Data Structure?}
+    D -->|Relational| E[PostgreSQL]
+    D -->|Document| F[Firestore / MongoDB]
+    D -->|Key-Value| G[Redis]
+    D -->|Graph| H[Neo4j]
+    E --> I{Managed or Self-hosted?}
+    I -->|Managed| J[Supabase / Neon]
+    I -->|Self-hosted| K[Docker + Railway]
+```
+
+### Database Options
+
+| Database       | Use When                                            | Skip When             |
+| -------------- | --------------------------------------------------- | --------------------- |
+| **Firestore**  | Real-time, document structure, Firebase ecosystem   | Complex relationships |
+| **Supabase**   | PostgreSQL + REST/Realtime, open source alternative | Need GraphQL          |
+| **MongoDB**    | Flexible schema, rapid prototyping                  | Strict ACID needed    |
+| **PostgreSQL** | Complex queries, relations, migrations              | Simple key-value only |
+| **Redis**      | Caching, sessions, rate limiting                    | Primary data store    |
+
+### Backend Pattern
+
+```mermaid
+flowchart LR
+    A[Frontend] --> B[API Routes / Server Actions]
+    B --> C{Database?}
+    C -->|Yes| D[Database Client]
+    C -->|No| E[Return Data]
+```
+
+#### Next.js API Route Pattern
+
+```typescript
+// app/api/resource/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest) {
+  // Validate auth
+  // Query database
+  // Return response
+}
+
+export async function POST(request: NextRequest) {
+  // Validate input
+  // Transform data
+  // Save to database
+  // Return result
+}
+```
+
+---
+
+## 5. AI Integration
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[AI Integration] --> B{Need AI Features?}
+    B -->|No| C[Skip]
+    B -->|Yes| D{Use Case?}
+    D -->|Chat/Generation| E[LLM API]
+    D -->|Image Generation| F[Image AI]
+    D -->|Embedding/Search| G[Vector DB]
+    E --> H{Provider?}
+    H -->|Google| I[Gemini]
+    H -->|OpenAI| J[GPT-4]
+    H -->|Open Source| K[Ollama / LM Studio]
+```
+
+### AI Options
+
+| Provider             | Best For                        | Cost          |
+| -------------------- | ------------------------------- | ------------- |
+| **Gemini 2.5 Flash** | General purpose, cost-effective | Low           |
+| **Gemini 2.5 Pro**   | Complex reasoning               | Medium        |
+| **GPT-4o**           | General purpose, mature         | Medium        |
+| **Claude 3.5**       | Coding, analysis                | Medium        |
+| **Ollama**           | Self-hosted, privacy            | Hardware cost |
+
+### AI Implementation Pattern
+
+```typescript
+// lib/ai.ts
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.AI_API_KEY });
+
+export async function generateContent(prompt: string) {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      temperature: 0.7,
+      maxOutputTokens: 4096,
+    },
+  });
+
+  return response.text;
+}
+```
+
+---
+
+## 6. Styling & UI
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Styling] --> B{Team Experience?}
+    B -->|Tailwind| C[Tailwind CSS]
+    B -->|CSS Modules| D[CSS Modules]
+    B -->|Styled Components| E[Styled Components]
+    C --> F{Need UI Library?}
+    F -->|Yes| G[Shadcn/ui or Radix]
+    F -->|No| H[Custom Components]
+```
+
+### Styling Options
+
+| Approach              | Use When                                      | Skip When                             |
+| --------------------- | --------------------------------------------- | ------------------------------------- |
+| **Tailwind CSS**      | Rapid development, team knows utility classes | Strong preference against utility CSS |
+| **CSS Modules**       | Scoped styling, no build config               | Need theming                          |
+| **Styled Components** | Component encapsulation                       | SSR complexity concerns               |
+| **Vanilla CSS**       | Very simple projects                          | Maintainability                       |
+
+### Recommended: Tailwind + Shadcn/ui
+
+```bash
+# Install Tailwind
+pnpm add tailwindcss @tailwindcss/postcss postcss autoprefixer
+
+# Install shadcn/ui
+pnpm dlx shadcn@latest init
+```
+
+---
+
+## 7. Project Structure
+
+### Generic Next.js Structure
+
+```
+my-project/
+├── app/                    # App Router pages
+│   ├── api/               # API routes
+│   │   └── resource/
+│   │       └── route.ts
+│   ├── (group)/           # Route groups
+│   ├── page.tsx           # Page
+│   └── layout.tsx         # Layout
+├── components/             # React components
+│   ├── ui/                # Base UI components
+│   └── features/          # Feature-specific components
+├── lib/                   # Utilities and config
+│   ├── utils.ts          # Helper functions
+│   └── constants.ts       # App constants
+├── contexts/              # React Context
+├── hooks/                 # Custom hooks
+├── types/                 # TypeScript types
+├── public/                # Static assets
+├── .env.example          # Environment template
+├── next.config.ts         # Next.js config
+├── tailwind.config.ts    # Tailwind config
+├── tsconfig.json         # TypeScript config
+└── package.json
+```
+
+### For API-Only Projects
+
+```
+my-api/
+├── src/
+│   ├── routes/           # Route handlers
+│   ├── middleware/       # Request middleware
+│   ├── lib/             # Utilities
+│   └── types/           # Types
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## 8. CI/CD Pipeline
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[CI/CD] --> B{Hosting Platform?}
+    B -->|Vercel| C[Vercel]
+    B -->|Netlify| D[Netlify]
+    B -->|Self-hosted| E[GitHub Actions + Server]
+    B -->|Docker| F[GitHub Actions + Docker]
+```
+
+### GitHub Actions - Generic Build
+
+```yaml
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Build
+        run: npm run build
+```
+
+---
+
+## 9. Environment Variables
+
+### Always Include
+
+```bash
+# =====================
+# REQUIRED FOR ALL
+# =====================
+
+# App Config
+NODE_ENV=development  # or production
+
+# =====================
+# AUTH (if needed)
+# =====================
+# NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# =====================
+# DATABASE (if needed)
+# =====================
+# DATABASE_URL=postgresql://...
+
+# =====================
+# AI (if needed)
+# =====================
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
+
+# =====================
+# EXTERNAL SERVICES
+# =====================
+# STRIPE_SECRET_KEY=sk_...
+# SENDGRID_API_KEY=SG....
+```
+
+### .env.example Template
+
+```bash
+# Copy this file to .env.local and fill in values
+
+# App
+NODE_ENV=development
+
+# Auth (example)
+# NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Database (example)
+# DATABASE_URL=
+
+# AI (example)
+# OPENAI_API_KEY=
+```
+
+---
+
+## 10. Language & Localization
+
+### Decision Tree
+
+```mermaid
+flowchart TD
+    A[Language] --> B{User Base?}
+    B -->|Single Region| C{Regional Spelling?}
+    B -->|Multi-region| D[Add i18n]
+    C -->|UK/AU/ZA| E[British English]
+    C -->|US| F[American English]
+    D --> G[next-intl or i18next]
+```
+
+### Language Conventions
+
+| Region               | Use For                                         | Example                   |
+| -------------------- | ----------------------------------------------- | ------------------------- |
+| **British English**  | UK, Australia, South Africa, user-facing labels | colour, programme, centre |
+| **American English** | US, code, technical docs                        | color, program, center    |
+
+### Code vs User-Facing
+
+| Context            | Language             | Notes                   |
+| ------------------ | -------------------- | ----------------------- |
+| **Code/Variables** | Standard conventions | Follow library docs     |
+| **Config files**   | Standard conventions | Don't break tooling     |
+| **Comments**       | Team preference      | Keep consistent         |
+| **UI Labels**      | User region          | Match user expectations |
+| **AI Prompts**     | As required          | May differ from UI      |
+
+---
+
+## 11. Quick Reference
+
+### Decision Checklist
+
+- [ ] Choose package manager (pnpm recommended)
+- [ ] Initialize git repository
+- [ ] Create .gitignore
+- [ ] Select framework
+- [ ] Set up authentication (if needed)
+- [ ] Choose database (if needed)
+- [ ] Configure styling
+- [ ] Set up CI/CD
+- [ ] Document environment variables
+- [ ] Choose language conventions
+
+### One-Command Init (Next.js)
+
+```bash
+# Full-featured Next.js project
+npx create-next-app@latest my-project \
+  --typescript \
+  --tailwind \
+  --eslint \
+  --app \
+  --src-dir \
+  --import-alias "@/*" \
+  --use-pnpm \
+  --yes
+```
+
+### Common Packages
+
+```bash
+# Utilities
+pnpm add clsx tailwind-merge
+
+# UI
+pnpm add lucide-react
+
+# Database
+pnpm add firebase  # or supabase, mongoose
+
+# AI
+pnpm add @google/genai  # or openai
+```
+
+---
+
+**Document Version:** 1.0.0  
+**Last Updated:** February 2026  
+**Purpose:** Generic project initialization guide
+
+# Cline's Memory Bank
+
+I am Cline, an expert software engineer with a unique characteristic: my memory resets completely between sessions. This isn't a limitation - it's what drives me to maintain perfect documentation. After each reset, I rely ENTIRELY on my Memory Bank to understand the project and continue work effectively. I MUST read ALL memory bank files at the start of EVERY task - this is not optional.
+
+## Memory Bank Structure
+
+The Memory Bank consists of core files and optional context files, all in Markdown format. Files build upon each other in a clear hierarchy:
+
+### Core Files (Required)
+
+1. `projectbrief.md`
+   - Foundation document that shapes all other files
+   - Created at project start if it doesn't exist
+   - Defines core requirements and goals
+   - Source of truth for project scope
+
+2. `productContext.md`
+   - Why this project exists
+   - Problems it solves
+   - How it should work
+   - User experience goals
+
+3. `activeContext.md`
+   - Current work focus
+   - Recent changes
+   - Next steps
+   - Active decisions and considerations
+   - Important patterns and preferences
+   - Learnings and project insights
+
+4. `systemPatterns.md`
+   - System architecture
+   - Key technical decisions
+   - Design patterns in use
+   - Component relationships
+   - Critical implementation paths
+
+5. `techContext.md`
+   - Technologies used
+   - Development setup
+   - Technical constraints
+   - Dependencies
+   - Tool usage patterns
+
+6. `progress.md`
+   - What works
+   - What's left to build
+   - Current status
+   - Known issues
+   - Evolution of project decisions
+
+### Additional Context
+
+Create additional files/folders within memory-bank/ when they help organize:
+
+- Complex feature documentation
+- Integration specifications
+- API documentation
+- Testing strategies
+- Deployment procedures
+
+## Documentation Updates
+
+Memory Bank updates occur when:
+
+1. Discovering new project patterns
+2. After implementing significant changes
+3. When user requests with **update memory bank** (MUST review ALL files)
+4. When context needs clarification
+
+REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is my only link to previous work. It must be maintained with precision and clarity, as my effectiveness depends entirely on its accuracy.
