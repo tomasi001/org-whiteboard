@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PanelRight, PanelRightClose } from "lucide-react";
+import { PanelRight, PanelRightClose, Plus, RotateCcw } from "lucide-react";
 import { WhiteboardProvider, useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Canvas } from "./Canvas";
@@ -11,8 +11,15 @@ import { ChatWidget } from "./ChatWidget";
 import { Button } from "@/components/ui/Button";
 
 function WhiteboardContent() {
-  const { currentWhiteboard, selectedNode } = useWhiteboard();
+  const { currentWhiteboard, selectedNode, setCurrentWhiteboard } = useWhiteboard();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+  const handleReset = () => {
+    if (confirm('Are you sure you want to start over? This will clear the current whiteboard.')) {
+      localStorage.removeItem('org-whiteboard');
+      setCurrentWhiteboard(null as any);
+    }
+  };
 
   // Auto-expand panel when a node is selected
   useEffect(() => {
@@ -35,7 +42,16 @@ function WhiteboardContent() {
         <h1 className="font-semibold text-slate-800">Org Whiteboard</h1>
         <span className="mx-2 text-slate-300">/</span>
         <span className="text-slate-600">{currentWhiteboard.name}</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleReset}
+            title="Start over"
+            className="text-slate-500 hover:text-red-500"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </Button>
           <Button 
             variant="ghost" 
             size="sm"
