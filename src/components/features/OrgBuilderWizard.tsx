@@ -8,6 +8,17 @@ import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { MiniCanvasPreview } from "./MiniCanvasPreview";
 import type { WhiteboardNode } from "@/types";
 
+// Simple markdown renderer for bold text
+function renderMarkdown(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 interface OrgBuilderWizardProps {
   onClose: () => void;
 }
@@ -365,13 +376,13 @@ Generate a complete organisational structure based on this information.`;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <Card className="w-full max-w-4xl mx-4 h-[90vh] flex flex-col overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between border-b flex-shrink-0">
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-violet-500" />
-            Org Builder Wizard
+        <CardHeader className="flex flex-row items-center justify-between border-b flex-shrink-0 bg-white">
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <Sparkles className="w-5 h-5 text-violet-600" />
+            <span className="text-slate-900 font-semibold">Org Builder Wizard</span>
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 text-slate-600" />
           </Button>
         </CardHeader>
 
@@ -425,10 +436,12 @@ Generate a complete organisational structure based on this information.`;
                 className={`max-w-[80%] rounded-lg px-4 py-2 ${
                   msg.role === 'user'
                     ? 'bg-violet-600 text-white'
-                    : 'bg-slate-100 text-slate-800'
+                    : 'bg-white border border-slate-200 text-slate-900'
                 }`}
               >
-                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                <div className="text-sm">
+                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                </div>
               </div>
               
               {/* Preview embedded in chat */}
