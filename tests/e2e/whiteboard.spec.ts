@@ -50,4 +50,7 @@ test("normalizes pasted JSON and allows mini-org readiness", async ({ page }) =>
 
   await expect(page.getByText("Ready")).toBeVisible();
   await expect(page.getByRole("button", { name: "Generate Org Chart" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Confirm & Continue" }).first().click();
+  await expect(page.getByRole("banner").getByText("Mini Org")).toBeVisible();
 });

@@ -142,6 +142,12 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
     intakeStateRef.current = intakeState;
   }, [intakeState]);
 
+  const continueToWhiteboard = (template: OrgTemplate | null | undefined) => {
+    if (!template) return;
+    setCurrentWhiteboard(buildWhiteboardFromTemplate(template));
+    onClose();
+  };
+
   const callConversation = async (
     userPrompt: string,
     source: "message" | "json" | "document",
@@ -381,6 +387,8 @@ Preserve confirmed details and fill practical gaps.`;
   };
 
   const busy = isLoading || isUploading;
+  const currentPreviewTemplate = intakeStateToTemplate(intakeState);
+  const canGenerate = readyToGenerate || Boolean(currentPreviewTemplate);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -464,8 +472,7 @@ Preserve confirmed details and fill practical gaps.`;
                 <div className="mt-2 w-full">
                   <MiniCanvasPreview
                     rootNode={buildRootNodeFromTemplate(message.previewTemplate)}
-                    onConfirm={() => undefined}
-                    onCancel={() => undefined}
+                    onConfirm={() => continueToWhiteboard(message.previewTemplate)}
                   />
                 </div>
               )}
@@ -592,7 +599,7 @@ Preserve confirmed details and fill practical gaps.`;
                 <Send className="w-4 h-4" />
               </Button>
             </div>
-            <Button onClick={handleGenerate} disabled={busy || !readyToGenerate}>
+            <Button onClick={handleGenerate} disabled={busy || !canGenerate}>
               <CheckCircle2 className="w-4 h-4 mr-2" />
               Generate Org Chart
             </Button>
