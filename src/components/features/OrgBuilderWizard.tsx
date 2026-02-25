@@ -80,6 +80,11 @@ const STARTER_PROMPTS = [
 
 const FILE_ACCEPT =
   ".pdf,.docx,.txt,.md,.markdown,.csv,.json,.yaml,.yml,.xml,.html,.rtf,.log";
+const MAX_UPLOAD_PROMPT_TEXT = 40_000;
+
+function clipPromptText(value: string, maxLength = MAX_UPLOAD_PROMPT_TEXT): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}\n[TRUNCATED]` : value;
+}
 
 function renderMarkdown(text: string): ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -310,7 +315,7 @@ Document name: ${parsed.fileName}
 Document type: ${parsed.fileType || "unknown"}
 
 Extracted text:
-${parsed.extractedText}`;
+${clipPromptText(parsed.extractedText)}`;
 
           await runConversationTurn(
             `Uploaded file: ${parsed.fileName}`,
