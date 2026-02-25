@@ -25,7 +25,6 @@ import {
 } from "@/lib/orgIntake";
 import type { OrgDataSummary, OrgIntakeState } from "@/lib/orgIntake";
 import type { OrgTemplate } from "@/types/orgTemplate";
-import { orgTemplateSchema } from "@/lib/schemas";
 
 interface OrgBuilderWizardProps {
   onClose: () => void;
@@ -229,16 +228,10 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
 
     try {
       const parsed = JSON.parse(jsonDraft) as unknown;
-      const validated = orgTemplateSchema.safeParse(parsed);
-
-      if (!validated.success) {
-        throw new Error("JSON does not match the required organisation template schema.");
-      }
-
-      const normalizedJson = JSON.stringify(validated.data, null, 2);
+      const normalizedJson = JSON.stringify(parsed, null, 2);
       await runConversationTurn(
         "Pasted structured org JSON.",
-        `Use this structured JSON as the primary baseline for the org map. Merge it with existing details and ask only for unanswered essentials.\n\n${normalizedJson}`,
+        `Use this structured JSON as baseline context and map it into the best org structure you can. The format may differ from your native template, so infer fields intelligently and continue with only unanswered essentials.\n\n${normalizedJson}`,
         "json"
       );
 
@@ -250,7 +243,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
         ...previous,
         {
           role: "assistant",
-          content: `JSON import failed: ${message}`,
+          content: `That JSON could not be parsed. Please check the syntax and try again. (${message})`,
         },
       ]);
     }

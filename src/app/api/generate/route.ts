@@ -17,6 +17,7 @@ import {
 } from "@/lib/orgIntake";
 import type { OrgIntakeState } from "@/lib/orgIntake";
 import type { OrgTemplateDepartment, OrgTemplateWorkflow } from "@/types/orgTemplate";
+import { intakeStateFromLooseJson } from "@/lib/intakeJsonMapper";
 
 const GENERATE_SYSTEM_PROMPT = `You are an expert organisational designer AI.
 
@@ -348,9 +349,7 @@ function inferStateFromJsonPrompt(prompt: string): OrgIntakeState {
 
   try {
     const parsed = JSON.parse(jsonString) as unknown;
-    const valid = orgTemplateSchema.safeParse(parsed);
-    if (!valid.success) return {};
-    return templateToIntakeState(valid.data);
+    return intakeStateFromLooseJson(parsed);
   } catch {
     return {};
   }
@@ -480,10 +479,13 @@ function finaliseConversationPayload(
     mergedPreview ? templateToIntakeState(mergedPreview) : {}
   );
 
+  const inferredMissing = friendlyMissingFields(getMissingFields(finalState));
+  const modelMissing = friendlyMissingFields(modelPayload.missingFields);
   const computedMissing =
-    modelPayload.missingFields.length > 0
-      ? friendlyMissingFields(modelPayload.missingFields)
-      : friendlyMissingFields(getMissingFields(finalState));
+    modelMissing.length > 0
+      ? [...new Set([...inferredMissing, ...modelMissing])]
+      : inferredMissing;
+  const readyToGenerate = computedMissing.length === 0;
 
   return {
     guidance: modelPayload.guidance,
@@ -491,7 +493,7 @@ function finaliseConversationPayload(
     previewData: mergedPreview,
     missingFields: computedMissing,
     suggestions: (modelPayload.suggestions ?? []).slice(0, 3),
-    readyToGenerate: modelPayload.readyToGenerate ?? isReadyToGenerate(finalState),
+    readyToGenerate,
   };
 }
 
@@ -516,7 +518,9 @@ export async function POST(request: NextRequest) {
     const { prompt, mode: rawMode, state: rawState, conversationHistory, source } =
       parsedRequest.data;
     const mode = rawMode === "conversation" ? "conversation" : "generate";
-    const canonicalState = normaliseState(rawState);
+    const baseState = normaliseState(rawState);
+    const inferredJsonState = source === "json" ? inferStateFromJsonPrompt(prompt) : {};
+    const canonicalState = mergeIntakeStates(baseState, inferredJsonState);
 
     let content: string | null = null;
 
