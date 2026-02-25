@@ -125,15 +125,29 @@ export function CreateWhiteboardDialog() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={() => setIsOpen(true)} size="lg" variant="outline">
+          <Button
+            onClick={() => setIsOpen(true)}
+            size="lg"
+            variant="outline"
+            className="px-[25px] whitespace-nowrap"
+          >
             <Plus className="w-5 h-5 mr-2" />
             Create Blank
           </Button>
-          <Button onClick={() => setShowWizard(true)} size="lg" variant="secondary">
+          <Button
+            onClick={() => setShowWizard(true)}
+            size="lg"
+            variant="secondary"
+            className="px-[25px] whitespace-nowrap"
+          >
             <Sparkles className="w-5 h-5 mr-2" />
             Guided Setup
           </Button>
-          <Button onClick={() => setShowGenerate(true)} size="lg">
+          <Button
+            onClick={() => setShowGenerate(true)}
+            size="lg"
+            className="px-[25px] whitespace-nowrap"
+          >
             <Sparkles className="w-5 h-5 mr-2" />
             Quick Generate
           </Button>
