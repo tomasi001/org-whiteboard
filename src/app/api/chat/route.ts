@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   AIConfigError,
   extractFirstJsonObject,
-  getGeminiClient,
+  generateText,
 } from "@/lib/ai";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
@@ -398,21 +398,23 @@ async function aiAction(
   selectedNodeId?: string
 ): Promise<ChatAction | null> {
   try {
-    const ai = getGeminiClient();
     const nodes = flattenNodes(root).slice(0, 300);
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `${CHAT_SYSTEM_PROMPT}
-
-Selected node id: ${selectedNodeId ?? "none"}
+    const prompt = `Selected node id: ${selectedNodeId ?? "none"}
 Available nodes (id, type, name):
 ${JSON.stringify(nodes)}
 
 User request:
 ${message}
 
-Return JSON only.`,
+Return JSON only.`;
+
+    const response = await generateText({
+      task: "chat",
+      systemPrompt: CHAT_SYSTEM_PROMPT,
+      userPrompt: prompt,
+      expectJson: true,
+      temperature: 0.1,
+      maxOutputTokens: 2048,
     });
 
     const text = response.text;

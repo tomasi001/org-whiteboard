@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AIConfigError, extractFirstJsonObject, getGeminiClient } from "@/lib/ai";
+import { AIConfigError, extractFirstJsonObject, generateText } from "@/lib/ai";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   conversationResponseSchema,
@@ -525,12 +525,9 @@ export async function POST(request: NextRequest) {
     let content: string | null = null;
 
     try {
-      const ai = getGeminiClient();
-      const contents =
+      const userPrompt =
         mode === "conversation"
-          ? `${CONVERSATION_SYSTEM_PROMPT}
-
-Current internal memory JSON:
+          ? `Current internal memory JSON:
 ${JSON.stringify(canonicalState)}
 
 Recent conversation history (latest last):
@@ -539,9 +536,7 @@ ${JSON.stringify((conversationHistory ?? []).slice(-12))}
 Latest user input source: ${source ?? "message"}
 Latest user input:
 ${clipText(prompt)}`
-          : `${GENERATE_SYSTEM_PROMPT}
-
-User request:
+          : `User request:
 ${clipText(prompt)}
 
 Existing intake data to preserve:
@@ -549,12 +544,17 @@ ${JSON.stringify(canonicalState)}
 
 If intake data contains validated details, keep them in the final output.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents,
+      const response = await generateText({
+        task: mode === "conversation" ? "chat" : "generate",
+        systemPrompt:
+          mode === "conversation" ? CONVERSATION_SYSTEM_PROMPT : GENERATE_SYSTEM_PROMPT,
+        userPrompt,
+        expectJson: true,
+        temperature: 0.2,
+        maxOutputTokens: 8192,
       });
 
-      content = response.text ?? null;
+      content = response.text || null;
     } catch (error) {
       if (mode === "conversation") {
         return NextResponse.json(
@@ -566,7 +566,7 @@ If intake data contains validated details, keep them in the final output.`;
         return NextResponse.json(
           {
             error:
-              "AI provider is not configured. Set GEMINI_API_KEY (or GOOGLE_AI_API_KEY) on the server.",
+              "AI provider is not configured. Configure OPENAI_API_KEY or GEMINI_API_KEY.",
           },
           { status: 503 }
         );

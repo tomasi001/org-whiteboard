@@ -30,7 +30,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 - Tailwind CSS 4
 - React Context for state management
 - LocalStorage for persistence
-- Google Gemini via server-side API routes
+- OpenAI (default, GPT-5) and Gemini via server-side API routes
 
 ## Project Structure
 
@@ -50,7 +50,11 @@ src/
 Copy `.env.example` to `.env.local` and configure:
 
 ```bash
-GEMINI_API_KEY=your-server-side-gemini-key
+USE_GEMINI_PROVIDER=false
+OPENAI_API_KEY=your-server-side-openai-key
+# Optional Gemini fallback/switch:
+# USE_GEMINI_PROVIDER=true
+# GEMINI_API_KEY=your-server-side-gemini-key
 ```
 
 ## Build
