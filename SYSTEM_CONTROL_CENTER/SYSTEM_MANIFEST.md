@@ -14,6 +14,7 @@ This manifest is the canonical technical audit of the active Org Whiteboard runt
   - breadcrumb drill-down/drill-up
   - layout mode (`auto` vs `freeform`)
   - zoom/pan and node positions
+  - dashboard card list is organisation-only (automation child boards are hidden)
 
 ### Flow 2: Guided Setup (Wizard Conversation)
 - UI: `src/components/features/OrgBuilderWizard.tsx`
@@ -25,6 +26,7 @@ This manifest is the canonical technical audit of the active Org Whiteboard runt
   - state is normalized and merged server-side
   - fallback heuristics run if model output is missing/invalid
   - PDF parsing dependency is loaded lazily at request time to keep server build stable
+  - readiness supports mini-org starts (users can generate from lightweight seed data)
 
 ### Flow 3: Quick Generate
 - UI: `src/components/features/GenerateOrgDialog.tsx`
@@ -50,7 +52,7 @@ This manifest is the canonical technical audit of the active Org Whiteboard runt
 - JSON extraction and schema parse gates are enforced before model outputs are applied.
 
 ### Hierarchy Contract
-- Allowed child node types are constrained by `src/lib/hierarchy.ts`.
+- Node relationships are intentionally unrestricted by type in `src/lib/hierarchy.ts`.
 - Tree mutations and parenting rules are enforced by `src/lib/whiteboardTree.ts`.
 
 ## Constraints and Guardrails

@@ -1,36 +1,46 @@
-import type { LayerColorConfig, NodeType, WhiteboardKind } from "@/types";
+import type { LayerColorConfig, NodeType } from "@/types";
+
+export const allNodeTypes: NodeType[] = [
+  "organisation",
+  "department",
+  "team",
+  "agentSwarm",
+  "teamLead",
+  "teamMember",
+  "agentLead",
+  "agentMember",
+  "role",
+  "subRole",
+  "tool",
+  "workflow",
+  "process",
+  "agent",
+  "automation",
+];
 
 export const defaultHierarchyRules: Record<NodeType, NodeType[]> = {
-  organisation: ["department"],
-  department: ["team", "agentSwarm"],
-  team: ["teamLead", "teamMember", "tool", "agent"],
-  agentSwarm: ["agentLead", "agentMember", "tool", "agent"],
-  teamLead: ["subRole", "tool", "agent"],
-  teamMember: ["subRole", "tool", "agent"],
-  agentLead: ["agent", "tool", "automation"],
-  agentMember: ["agent", "tool", "automation"],
-  role: ["subRole", "tool", "agent"],
-  subRole: ["tool", "agent"],
-  tool: ["automation"],
-  workflow: ["agent", "automation"],
-  process: ["agent"],
-  agent: ["agent", "tool", "automation"],
-  automation: [],
+  organisation: allNodeTypes,
+  department: allNodeTypes,
+  team: allNodeTypes,
+  agentSwarm: allNodeTypes,
+  teamLead: allNodeTypes,
+  teamMember: allNodeTypes,
+  agentLead: allNodeTypes,
+  agentMember: allNodeTypes,
+  role: allNodeTypes,
+  subRole: allNodeTypes,
+  tool: allNodeTypes,
+  workflow: allNodeTypes,
+  process: allNodeTypes,
+  agent: allNodeTypes,
+  automation: allNodeTypes,
 };
 
-export const automationHierarchyRules: Partial<Record<NodeType, NodeType[]>> = {
-  automation: ["agent", "tool", "automation"],
-};
+export const automationHierarchyRules: Partial<Record<NodeType, NodeType[]>> = {};
 
-export function getAllowedChildTypes(
-  parentType: NodeType,
-  boardKind: WhiteboardKind = "organisation"
-): NodeType[] {
-  if (boardKind === "automation") {
-    return automationHierarchyRules[parentType] ?? defaultHierarchyRules[parentType] ?? [];
-  }
-
-  return defaultHierarchyRules[parentType] ?? [];
+export function getAllowedChildTypes(parentType: NodeType): NodeType[] {
+  void parentType;
+  return allNodeTypes;
 }
 
 export const hierarchyRules = defaultHierarchyRules;

@@ -8,6 +8,7 @@ Source:
 
 Key constraints:
 - `generateRequest.prompt` max length: 50,000
+- `generateRequest.structuredJson` max length: 200,000
 - `generateRequest.conversationHistory` max items: 24
 - `chatRequest.message` max length: 4,000
 - `conversationHistoryMessage.content` max length: 8,000
@@ -50,9 +51,11 @@ Source:
 
 Key constraints:
 - zoom clamp: `[0.1, 3]`
-- only allowed child types can be added/reparented
+- node relationships are unrestricted by type (any node type can be added/reparented anywhere)
 - root node cannot be reparented or deleted by delete-node action path
 - automation board open/return only works with valid linked IDs
+- deleting a parent board cascades to nested automation child boards
+- deleting an automation node cascades to linked automation child boards
 
 ## Model Routing Constraints
 Source:
@@ -71,7 +74,9 @@ Source:
 
 Behavior:
 - conversation mode falls back to heuristic state inference when model output fails
+- JSON conversation intake normalizes pasted payloads before mapping (fences/comments/trailing commas handled)
 - chat route attempts deterministic local action parse before AI parse
+- readiness gating is mini-org friendly (users can generate from lightweight seed structure)
 
 ## Current Gaps vs Deep-Copy Governance Model
 - no centralized runtime handover markers

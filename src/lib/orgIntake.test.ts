@@ -92,7 +92,7 @@ describe("org intake helpers", () => {
     };
 
     const missing = getMissingFields(incomplete);
-    expect(missing).toContain("organisation name");
+    expect(missing).toContain("at least one organisation seed detail");
     expect(isReadyToGenerate(incomplete)).toBe(false);
 
     const complete: OrgIntakeState = {

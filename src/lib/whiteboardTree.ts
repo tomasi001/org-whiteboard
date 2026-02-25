@@ -46,12 +46,13 @@ export function addNodeToTree(
   input: CreateNodeInput,
   boardKind: WhiteboardKind = "organisation"
 ): WhiteboardNode {
+  void boardKind;
   const newNode = createNode(input);
   const targetParentId = input.parentId ?? root.id;
 
   const visit = (node: WhiteboardNode): WhiteboardNode => {
     if (node.id === targetParentId) {
-      const allowedChildren = getAllowedChildTypes(node.type, boardKind);
+      const allowedChildren = getAllowedChildTypes(node.type);
       if (!allowedChildren.includes(input.type)) {
         return node;
       }
@@ -166,6 +167,7 @@ export function reparentNodeInTree(
   newParentId: string,
   boardKind: WhiteboardKind = "organisation"
 ): WhiteboardNode {
+  void boardKind;
   if (root.id === nodeId) return root;
 
   const nodeToMove = findNodeById(root, nodeId);
@@ -173,7 +175,7 @@ export function reparentNodeInTree(
 
   if (!nodeToMove || !newParent) return root;
   if (hasDescendant(nodeToMove, newParentId)) return root;
-  if (!getAllowedChildTypes(newParent.type, boardKind).includes(nodeToMove.type)) return root;
+  if (!getAllowedChildTypes(newParent.type).includes(nodeToMove.type)) return root;
   if (nodeToMove.parentId === newParentId) return root;
 
   const { nextRoot, removedNode } = removeNodeById(root, nodeId);

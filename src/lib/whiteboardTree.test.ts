@@ -85,16 +85,16 @@ describe("whiteboardTree", () => {
     expect(team?.parentId).toBe("dept-ops");
   });
 
-  it("rejects invalid child types for a parent", () => {
+  it("allows unrestricted child types for a parent", () => {
     const root = makeTree();
     const next = addNodeToTree(root, {
       parentId: "org",
       type: "team",
-      name: "Invalid Team At Root",
+      name: "Cross Functional Team",
     });
 
-    expect(findNodeById(next, "org")?.children.map((child) => child.name)).not.toContain(
-      "Invalid Team At Root"
+    expect(findNodeById(next, "org")?.children.map((child) => child.name)).toContain(
+      "Cross Functional Team"
     );
   });
 

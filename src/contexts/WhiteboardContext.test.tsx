@@ -167,4 +167,109 @@ describe("WhiteboardContext", () => {
 
     expect(result.current.currentWhiteboard?.kind).toBe("organisation");
   });
+
+  it("deletes linked automation boards when an automation node is removed", () => {
+    const { result } = renderHook(() => useWhiteboard(), { wrapper });
+
+    act(() => {
+      result.current.createWhiteboard("Automation Cleanup Org");
+    });
+
+    const rootId = result.current.currentWhiteboard!.rootNode.id;
+    act(() => {
+      result.current.createNode({ parentId: rootId, type: "department", name: "Ops" });
+    });
+
+    const department = findByName(result.current.currentWhiteboard!.rootNode, "Ops")!;
+    act(() => {
+      result.current.createNode({ parentId: department.id, type: "team", name: "Delivery" });
+    });
+
+    const team = findByName(result.current.currentWhiteboard!.rootNode, "Delivery")!;
+    act(() => {
+      result.current.createNode({ parentId: team.id, type: "agent", name: "Router Agent" });
+    });
+
+    const agent = findByName(result.current.currentWhiteboard!.rootNode, "Router Agent")!;
+    act(() => {
+      result.current.createNode({
+        parentId: agent.id,
+        type: "automation",
+        name: "Qualification Automation",
+      });
+    });
+
+    const automation = findByName(
+      result.current.currentWhiteboard!.rootNode,
+      "Qualification Automation"
+    )!;
+
+    act(() => {
+      result.current.openAutomationBoard(automation.id);
+      result.current.returnToParentBoard();
+    });
+
+    expect(result.current.whiteboards).toHaveLength(2);
+
+    act(() => {
+      result.current.deleteNode(automation.id);
+    });
+
+    expect(result.current.whiteboards).toHaveLength(1);
+    expect(
+      findByName(result.current.currentWhiteboard!.rootNode, "Qualification Automation")
+    ).toBeNull();
+  });
+
+  it("cascades board deletion to nested automation boards", () => {
+    const { result } = renderHook(() => useWhiteboard(), { wrapper });
+
+    act(() => {
+      result.current.createWhiteboard("Cascade Delete Org");
+    });
+
+    const parentId = result.current.currentWhiteboard!.id;
+    const rootId = result.current.currentWhiteboard!.rootNode.id;
+    act(() => {
+      result.current.createNode({ parentId: rootId, type: "department", name: "Ops" });
+    });
+
+    const department = findByName(result.current.currentWhiteboard!.rootNode, "Ops")!;
+    act(() => {
+      result.current.createNode({ parentId: department.id, type: "team", name: "Delivery" });
+    });
+
+    const team = findByName(result.current.currentWhiteboard!.rootNode, "Delivery")!;
+    act(() => {
+      result.current.createNode({ parentId: team.id, type: "agent", name: "Router Agent" });
+    });
+
+    const agent = findByName(result.current.currentWhiteboard!.rootNode, "Router Agent")!;
+    act(() => {
+      result.current.createNode({
+        parentId: agent.id,
+        type: "automation",
+        name: "Qualification Automation",
+      });
+    });
+
+    const automation = findByName(
+      result.current.currentWhiteboard!.rootNode,
+      "Qualification Automation"
+    )!;
+
+    act(() => {
+      result.current.openAutomationBoard(automation.id);
+    });
+
+    expect(result.current.whiteboards).toHaveLength(2);
+    expect(result.current.currentWhiteboard?.kind).toBe("automation");
+
+    act(() => {
+      result.current.deleteWhiteboard(parentId);
+    });
+
+    expect(result.current.whiteboards).toHaveLength(0);
+    expect(result.current.currentWhiteboard).toBeNull();
+  });
 });

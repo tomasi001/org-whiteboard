@@ -86,4 +86,51 @@ describe("intakeStateFromLooseJson", () => {
     expect(intakeStateFromLooseJson("bad")).toEqual({});
     expect(intakeStateFromLooseJson(null)).toEqual({});
   });
+
+  it("maps top-level arrays into departments", () => {
+    const mapped = intakeStateFromLooseJson(["Sales", "Marketing"]);
+
+    expect(mapped.departments?.map((department) => department.name)).toEqual(
+      expect.arrayContaining(["Sales", "Marketing"])
+    );
+  });
+
+  it("maps whiteboard tree JSON into intake state", () => {
+    const payload = {
+      name: "Tree Corp",
+      rootNode: {
+        name: "Tree Corp",
+        type: "organisation",
+        children: [
+          {
+            name: "Operations",
+            type: "department",
+            children: [
+              {
+                name: "Support",
+                type: "team",
+                children: [],
+              },
+            ],
+          },
+          {
+            name: "Lead Automation",
+            type: "workflow",
+            children: [],
+          },
+        ],
+      },
+    };
+
+    const mapped = intakeStateFromLooseJson(payload);
+
+    expect(mapped.name).toBe("Tree Corp");
+    expect(mapped.departments?.map((department) => department.name)).toContain("Operations");
+    expect(
+      mapped.departments
+        ?.find((department) => department.name === "Operations")
+        ?.teams?.map((team) => team.name)
+    ).toContain("Support");
+    expect(mapped.workflows?.map((workflow) => workflow.name)).toContain("Lead Automation");
+  });
 });
