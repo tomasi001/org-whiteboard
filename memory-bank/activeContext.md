@@ -1,5 +1,8 @@
 # Active Context
 
+> Maintenance note: this memory-bank file is contextual and non-canonical.
+> Canonical governance and runtime audit references live in `SYSTEM_CONTROL_CENTER/*`.
+
 ## Current Work Focus
 - AI integration with Gemini 2.5 Flash is working
 - Application running at http://localhost:3001

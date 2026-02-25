@@ -1,5 +1,8 @@
 # Technical Context
 
+> Maintenance note: this memory-bank file is contextual and non-canonical.
+> Canonical governance and runtime audit references live in `SYSTEM_CONTROL_CENTER/*`.
+
 ## Technologies Used
 - **Framework**: Next.js 16.1.6 with App Router
 - **Language**: TypeScript

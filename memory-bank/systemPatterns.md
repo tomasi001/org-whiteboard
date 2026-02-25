@@ -1,5 +1,8 @@
 # System Patterns
 
+> Maintenance note: this memory-bank file is contextual and non-canonical.
+> Canonical governance and runtime audit references live in `SYSTEM_CONTROL_CENTER/*`.
+
 ## Architecture Overview
 The application follows a component-based architecture with React Context for global state management.
 

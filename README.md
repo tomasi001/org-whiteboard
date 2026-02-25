@@ -45,6 +45,27 @@ src/
 └── types/               # TypeScript types
 ```
 
+## Governance Control Plane
+
+Operational maintenance and governance surfaces are documented in:
+
+```bash
+SYSTEM_CONTROL_CENTER/
+```
+
+This folder tracks:
+- prompt registry
+- constraint registry
+- model routing
+- change map
+- architecture and manifest
+- training and maintenance workflow
+
+Source-of-truth precedence:
+1. Runtime behavior: `src/**`
+2. Contracts: `src/lib/schemas.ts`, `src/types/**`
+3. Governance mirror: `SYSTEM_CONTROL_CENTER/**`
+
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` and configure:

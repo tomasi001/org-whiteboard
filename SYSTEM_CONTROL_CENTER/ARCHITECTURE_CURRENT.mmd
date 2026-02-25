@@ -1,0 +1,24 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+    U["User"] --> UI["Whiteboard UI (React)"];
+    UI --> Ctx["WhiteboardContext (Reducer + localStorage)"];
+    Ctx --> Canvas["Canvas / NodePanel / Breadcrumbs"];
+    UI --> Wizard["OrgBuilderWizard"];
+    UI --> Quick["GenerateOrgDialog"];
+    UI --> Chat["ChatWidget"];
+    Wizard --> GRoute["POST /api/generate (conversation|generate)"];
+    Quick --> GRoute;
+    Chat --> CRoute["POST /api/chat"];
+    Wizard --> ParseRoute["POST /api/intake/parse"];
+    GRoute --> AI["src/lib/ai.ts (Provider + Model Routing)"];
+    CRoute --> AI;
+    GRoute --> Schemas["src/lib/schemas.ts (Zod Contracts)"];
+    CRoute --> Schemas;
+    ParseRoute --> ParseConstraints["File/Size/Text Constraints"];
+    Ctx --> Tree["src/lib/whiteboardTree.ts"];
+    Ctx --> Hierarchy["src/lib/hierarchy.ts"];
+    classDef default fill:#f4f7ff,line-height:1.2;
