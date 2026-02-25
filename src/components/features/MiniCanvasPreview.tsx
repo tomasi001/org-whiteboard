@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { WhiteboardNode } from "@/types";
 import { ZoomIn, ZoomOut, Maximize2, X, Expand } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 interface LayoutNode {
   node: WhiteboardNode;
@@ -61,7 +62,8 @@ function flattenLayout(layout: LayoutNode): LayoutNode[] {
 }
 
 export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }: MiniCanvasPreviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const inlineContainerRef = useRef<HTMLDivElement>(null);
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(0.5);
   const [pan, setPan] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
@@ -94,28 +96,16 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
     };
   }, [layoutNodes]);
 
-  // Auto-fit on mount
   useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const containerWidth = containerRef.current.clientWidth;
-    const containerHeight = containerRef.current.clientHeight;
-    const contentWidth = bounds.maxX - bounds.minX;
-    const contentHeight = bounds.maxY - bounds.minY;
-    
-    const scaleX = containerWidth / contentWidth;
-    const scaleY = containerHeight / contentHeight;
-    const newZoom = Math.min(scaleX, scaleY, 0.8) * 0.9;
-    
-    setZoom(Math.max(0.2, newZoom));
-    
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    const panX = containerWidth / 2 - centerX * newZoom;
-    const panY = containerHeight / 2 - centerY * newZoom;
-    
-    setPan({ x: panX, y: panY });
-  }, [bounds]);
+    if (!isFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
 
   const handleZoomIn = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,10 +119,13 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
 
   const handleFitToView = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!containerRef.current) return;
+    const container = isFullscreen
+      ? fullscreenContainerRef.current
+      : inlineContainerRef.current;
+    if (!container) return;
     
-    const containerWidth = containerRef.current.clientWidth;
-    const containerHeight = containerRef.current.clientHeight;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
     const contentWidth = bounds.maxX - bounds.minX;
     const contentHeight = bounds.maxY - bounds.minY;
     
@@ -148,7 +141,12 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
     const panY = containerHeight / 2 - centerY * newZoom;
     
     setPan({ x: panX, y: panY });
-  }, [bounds]);
+  }, [bounds, isFullscreen]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => handleFitToView(), 80);
+    return () => window.clearTimeout(timer);
+  }, [handleFitToView, isFullscreen]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-content')) {
@@ -162,7 +160,7 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
     if (isDragging) {
       const deltaX = e.clientX - lastMousePos.x;
       const deltaY = e.clientY - lastMousePos.y;
-      setPan({ x: pan.x + deltaX, y: pan.y + deltaY });
+      setPan((current) => ({ x: current.x + deltaX, y: current.y + deltaY }));
       setLastMousePos({ x: e.clientX, y: e.clientY });
     }
   };
@@ -170,6 +168,7 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
   const handleMouseUp = () => setIsDragging(false);
 
   const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
     setZoom(z => Math.max(0.1, Math.min(1.5, z * zoomFactor)));
@@ -180,11 +179,21 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
     onNodeClick?.(node);
   };
 
-  return (
-    <div className={`flex flex-col border border-white/20 rounded-[16.168px] overflow-hidden bg-black/20 backdrop-blur-md ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : ''}`}>
-      {/* Header with zoom controls */}
-      <div className="flex items-center justify-between px-3 py-2 bg-black/20 border-b border-white/20">
-        <span className="text-xs font-roundo lowercase text-cardzzz-cream">preview</span>
+  const renderPreviewFrame = (mode: "inline" | "fullscreen") => {
+    const containerRef = mode === "fullscreen" ? fullscreenContainerRef : inlineContainerRef;
+
+    return (
+    <div
+      className={`flex flex-col overflow-hidden ${
+        mode === "inline"
+          ? "border border-white/20 rounded-[16.168px] bg-black/20 backdrop-blur-md"
+          : "fixed inset-0 z-[120] rounded-none bg-[radial-gradient(circle_at_20%_20%,#1f2937_0%,#0f172a_45%,#020617_100%)]"
+      }`}
+    >
+      <div className="flex items-center justify-between px-3 py-2 bg-black/35 border-b border-white/20">
+        <span className="text-xs font-roundo lowercase text-cardzzz-cream">
+          {mode === "fullscreen" ? "preview · fullscreen" : "preview"}
+        </span>
         <div className="flex items-center gap-1">
           <button
             onClick={handleZoomOut}
@@ -193,7 +202,9 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <span className="text-xs text-cardzzz-cream w-10 text-center font-satoshi">{Math.round(zoom * 100)}%</span>
+          <span className="text-xs text-cardzzz-cream w-10 text-center font-satoshi">
+            {Math.round(zoom * 100)}%
+          </span>
           <button
             onClick={handleZoomIn}
             className="p-1 hover:bg-white/10 rounded-[10px] transition-colors text-cardzzz-cream"
@@ -218,13 +229,13 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
         </div>
       </div>
 
-      {/* Canvas */}
-      <div 
+      <div
         ref={containerRef}
         className="relative overflow-hidden"
-        style={{ 
-          cursor: isDragging ? 'grabbing' : 'grab',
-          height: isFullscreen ? 'calc(100vh - 100px)' : '256px'
+        style={{
+          cursor: isDragging ? "grabbing" : "grab",
+          height: mode === "fullscreen" ? "calc(100vh - 100px)" : "256px",
+          touchAction: "none",
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -232,24 +243,23 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
       >
-        <div 
+        <div
           className="canvas-content absolute"
           style={{
             left: 0,
             top: 0,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
+            transformOrigin: "0 0",
           }}
         >
-          {/* Connection lines */}
-          <svg 
-            className="absolute pointer-events-none" 
-            style={{ 
-              left: bounds.minX - 50, 
+          <svg
+            className="absolute pointer-events-none"
+            style={{
+              left: bounds.minX - 50,
               top: bounds.minY - 50,
               width: bounds.maxX - bounds.minX + 100,
               height: bounds.maxY - bounds.minY + 100,
-              overflow: 'visible',
+              overflow: "visible",
             }}
           >
             {layoutNodes.map(ln => {
@@ -275,7 +285,6 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
             })}
           </svg>
 
-          {/* Nodes - smaller cards for preview */}
           {layoutNodes.map(ln => (
             <div
               key={ln.node.id}
@@ -286,26 +295,26 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
               <div className="bg-white/10 backdrop-blur-md rounded-[12px] border border-white/20 p-2 min-w-[180px] max-w-[200px]">
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded flex items-center justify-center ${
-                    ln.node.type === 'organisation' ? 'bg-cardzzz-cream/20 text-cardzzz-cream' :
-                    ln.node.type === 'department' ? 'bg-cardzzz-cream/20 text-cardzzz-cream' :
-                    ln.node.type === 'team' ? 'bg-cardzzz-cream/20 text-cardzzz-cream' :
-                    'bg-cardzzz-cream/20 text-cardzzz-cream'
+                    ln.node.type === "organisation" ? "bg-cardzzz-cream/20 text-cardzzz-cream" :
+                    ln.node.type === "department" ? "bg-cardzzz-cream/20 text-cardzzz-cream" :
+                    ln.node.type === "team" ? "bg-cardzzz-cream/20 text-cardzzz-cream" :
+                    "bg-cardzzz-cream/20 text-cardzzz-cream"
                   }`}>
-                    {ln.node.type === 'organisation' && '🏢'}
-                    {ln.node.type === 'department' && '🏢'}
-                    {ln.node.type === 'team' && '👥'}
-                    {ln.node.type === 'teamLead' && '👤'}
-                    {ln.node.type === 'teamMember' && '👤'}
-                    {ln.node.type === 'tool' && '🔧'}
-                    {ln.node.type === 'workflow' && '⚡'}
-                    {ln.node.type === 'process' && '⟳'}
-                    {ln.node.type === 'agent' && '🤖'}
-                    {ln.node.type === 'automation' && '⚡'}
+                    {ln.node.type === "organisation" && "🏢"}
+                    {ln.node.type === "department" && "🏢"}
+                    {ln.node.type === "team" && "👥"}
+                    {ln.node.type === "teamLead" && "👤"}
+                    {ln.node.type === "teamMember" && "👤"}
+                    {ln.node.type === "tool" && "🔧"}
+                    {ln.node.type === "workflow" && "⚡"}
+                    {ln.node.type === "process" && "⟳"}
+                    {ln.node.type === "agent" && "🤖"}
+                    {ln.node.type === "automation" && "⚡"}
                     {![
-                      'organisation', 'department', 'team', 'teamLead', 
-                      'teamMember', 'tool', 'workflow', 'process', 
-                      'agent', 'automation'
-                    ].includes(ln.node.type) && '📋'}
+                      "organisation", "department", "team", "teamLead",
+                      "teamMember", "tool", "workflow", "process",
+                      "agent", "automation"
+                    ].includes(ln.node.type) && "📋"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-roundo lowercase text-cardzzz-cream truncate">{ln.node.name}</p>
@@ -320,9 +329,8 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
         </div>
       </div>
 
-      {/* Action buttons */}
       {(onConfirm || onCancel) && (
-        <div className="flex items-center justify-end gap-2 px-3 py-2 bg-black/20 border-t border-white/20">
+        <div className="flex items-center justify-end gap-2 px-3 py-2 bg-black/35 border-t border-white/20">
           {onCancel && (
             <button
               onClick={onCancel}
@@ -342,5 +350,15 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
         </div>
       )}
     </div>
+    );
+  };
+
+  return (
+    <>
+      {renderPreviewFrame("inline")}
+      {typeof window !== "undefined" && isFullscreen
+        ? createPortal(renderPreviewFrame("fullscreen"), document.body)
+        : null}
+    </>
   );
 }
