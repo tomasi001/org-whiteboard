@@ -64,15 +64,37 @@ export const orgTemplateSchema = z.object({
   workflows: z.array(orgTemplateWorkflowSchema).optional(),
 });
 
+export const orgIntakeStateSchema = z.object({
+  name: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  industry: z.string().trim().optional(),
+  goals: z.array(nonEmptyString).optional(),
+  constraints: z.array(nonEmptyString).optional(),
+  departments: z.array(orgTemplateDepartmentSchema).optional(),
+  workflows: z.array(orgTemplateWorkflowSchema).optional(),
+});
+
+const conversationHistoryMessageSchema = z.object({
+  role: z.enum(["assistant", "user"]),
+  content: nonEmptyString.max(8_000),
+});
+
 export const conversationResponseSchema = z.object({
   guidance: nonEmptyString,
+  state: orgIntakeStateSchema,
   previewData: orgTemplateSchema.nullable().optional(),
+  missingFields: z.array(nonEmptyString).default([]),
+  suggestions: z.array(nonEmptyString).optional(),
+  readyToGenerate: z.boolean().optional(),
 });
 
 export const generateRequestSchema = z.object({
-  prompt: nonEmptyString.max(8000),
+  prompt: nonEmptyString.max(50_000),
   mode: z.enum(["generate", "conversation"]).optional(),
   orgData: z.record(z.string(), z.unknown()).optional(),
+  state: orgIntakeStateSchema.optional(),
+  source: z.enum(["message", "json", "document"]).optional(),
+  conversationHistory: z.array(conversationHistoryMessageSchema).max(24).optional(),
   currentStep: z.string().trim().optional(),
 });
 

@@ -6,10 +6,22 @@ import {
   generateRequestSchema,
   orgTemplateSchema,
 } from "@/lib/schemas";
+import {
+  emptyIntakeState,
+  getMissingFields,
+  intakeStateToTemplate,
+  isReadyToGenerate,
+  mergeIntakeStates,
+  mergeTemplates,
+  templateToIntakeState,
+} from "@/lib/orgIntake";
+import type { OrgIntakeState } from "@/lib/orgIntake";
 
-const GENERATE_SYSTEM_PROMPT = `You are an expert organisational designer AI that thinks deeply about organisational structures. Your task is to generate comprehensive, realistic organisational structures based on user descriptions.
+const GENERATE_SYSTEM_PROMPT = `You are an expert organisational designer AI.
 
-You must output valid JSON that matches this exact structure:
+Your task is to produce a complete and realistic organisation template as valid JSON.
+
+Output schema:
 {
   "name": "Organisation Name",
   "description": "Brief description",
@@ -53,60 +65,60 @@ You must output valid JSON that matches this exact structure:
   "workflows": []
 }
 
-Think carefully about:
-1. The type of organisation (tech, healthcare, finance, retail, manufacturing, etc.)
-2. The realistic size and complexity based on the description
-3. Modern tools and systems that organisation would use
-4. Whether workflows should be agentic (AI-driven) or linear (sequential) based on the task
-5. Realistic job titles and roles
-6. Practical automations that make sense
+Rules:
+1. Prioritise canonical state data if provided.
+2. If fields conflict, canonical state wins.
+3. Fill reasonable detail without inventing impossible specifics.
+4. Use modern, practical tools/workflows.
+5. Output only valid JSON (no markdown, no prose).`;
 
-Be comprehensive - use all available levels: departments -> teams -> team members -> tools -> workflows -> processes -> agents -> automations
+const CONVERSATION_SYSTEM_PROMPT = `You are an adaptive organisational design copilot.
 
-Output ONLY valid JSON, no markdown formatting or explanations.`;
+You maintain a canonical state object across turns and update it using the latest user input.
+The user may provide data as:
+- free-text conversation
+- pasted structured JSON
+- extracted text from uploaded documents
 
-const CONVERSATION_SYSTEM_PROMPT = `You are an expert organisational designer helping users build their organisation step by step through conversation.
+Your behavior must be adaptive, not scripted:
+1. Extract explicit and implicit organisational details (semantic inference, not exact keyword matching).
+2. Merge new details into canonical state without losing prior confirmed info.
+3. If user confirms a suggestion (examples: "yes", "sounds good", "use those departments"), treat suggested items as accepted and add them.
+4. Ask only for truly missing information. Never re-ask already provided details.
+5. If the user already provided enough information, do not continue step-by-step questioning. Instead suggest 1-3 high-value improvements.
 
-When the user provides information about their organisation, you should:
-1. Acknowledge what they've shared
-2. Ask follow-up questions to gather more details
-3. Provide guidance on next steps
-
-IMPORTANT: You must ALWAYS respond with valid JSON in this exact format:
+Return JSON only in this exact shape:
 {
-  "guidance": "Your conversational response with guidance and next question",
-  "previewData": { 
-    "name": "Organisation Name",
-    "description": "Brief description",
-    "departments": [
-      {
-        "name": "Department Name",
-        "description": "What this department does",
-        "head": "Name of department head (optional)",
-        "teams": [
-          {
-            "name": "Team Name",
-            "description": "Team purpose",
-            "teamLead": "Team lead name (optional)",
-            "teamMembers": ["Member 1", "Member 2"],
-            "tools": ["Tool 1", "Tool 2"],
-            "workflows": []
-          }
-        ],
-        "workflows": []
-      }
-    ],
+  "guidance": "short conversational response",
+  "state": {
+    "name": "",
+    "description": "",
+    "industry": "",
+    "goals": [],
+    "constraints": [],
+    "departments": [],
     "workflows": []
-  }
+  },
+  "previewData": {
+    "name": "",
+    "description": "",
+    "departments": [],
+    "workflows": []
+  },
+  "missingFields": ["..."],
+  "suggestions": ["..."],
+  "readyToGenerate": true
 }
 
-Guidelines:
-- Keep guidance concise (2-4 sentences) and conversational
-- Ask one focused question at a time
-- Include previewData only when there is enough detail (at least org name and one department)
-- If previewData is not ready, set previewData to null
+Rules for output fields:
+- guidance: concise, direct, and contextual. 2-5 sentences.
+- state: always present and updated.
+- previewData: include when state can be represented as an org structure; else null.
+- missingFields: list only blocking missing fields.
+- suggestions: optional quality improvements.
+- readyToGenerate: true only when enough data is present to produce a useful org structure.
 
-Output ONLY valid JSON, no markdown formatting or explanations.`;
+Output only valid JSON.`;
 
 function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -117,13 +129,17 @@ function getClientIp(request: NextRequest): string {
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
+function clipText(value: string, maxLength = 40_000): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}\n[TRUNCATED]` : value;
+}
+
+function normaliseState(state: OrgIntakeState | undefined): OrgIntakeState {
+  return mergeIntakeStates(emptyIntakeState, state ?? {});
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const rateLimit = checkRateLimit(
-      `generate:${getClientIp(request)}`,
-      30,
-      60_000
-    );
+    const rateLimit = checkRateLimit(`generate:${getClientIp(request)}`, 30, 60_000);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -136,29 +152,43 @@ export async function POST(request: NextRequest) {
     const parsedRequest = generateRequestSchema.safeParse(body);
 
     if (!parsedRequest.success) {
-      return NextResponse.json(
-        { error: "Invalid request payload." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });
     }
 
-    const { prompt, mode: rawMode, orgData, currentStep } = parsedRequest.data;
+    const {
+      prompt,
+      mode: rawMode,
+      state: rawState,
+      conversationHistory,
+      source,
+    } = parsedRequest.data;
     const mode = rawMode === "conversation" ? "conversation" : "generate";
 
     const ai = getGeminiClient();
+    const canonicalState = normaliseState(rawState);
+
     const contents =
       mode === "conversation"
         ? `${CONVERSATION_SYSTEM_PROMPT}
 
-Current conversation context:
-- Current step: ${currentStep ?? "intro"}
-- Org data so far: ${JSON.stringify(orgData ?? {})}
-- User message: ${prompt}
+Current canonical state JSON:
+${JSON.stringify(canonicalState)}
 
-Respond with JSON containing guidance and optional previewData.`
+Recent conversation history (latest last):
+${JSON.stringify((conversationHistory ?? []).slice(-12))}
+
+Latest user input source: ${source ?? "message"}
+Latest user input:
+${clipText(prompt)}`
         : `${GENERATE_SYSTEM_PROMPT}
 
-Generate an organisational structure for: ${prompt}`;
+User request:
+${clipText(prompt)}
+
+Canonical state to preserve:
+${JSON.stringify(canonicalState)}
+
+If canonical state contains validated data, keep it in the final output.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -192,9 +222,31 @@ Generate an organisational structure for: ${prompt}`;
         );
       }
 
+      const modelState = normaliseState(parsedConversation.data.state);
+      const mergedState = mergeIntakeStates(canonicalState, modelState);
+      const modelPreview = parsedConversation.data.previewData ?? null;
+      const mergedPreview = mergeTemplates(intakeStateToTemplate(mergedState), modelPreview);
+
+      const finalState = mergeIntakeStates(
+        mergedState,
+        mergedPreview ? templateToIntakeState(mergedPreview) : {}
+      );
+
+      const missingFields =
+        parsedConversation.data.missingFields.length > 0
+          ? parsedConversation.data.missingFields
+          : getMissingFields(finalState);
+
+      const readyToGenerate =
+        parsedConversation.data.readyToGenerate ?? isReadyToGenerate(finalState);
+
       return NextResponse.json({
         guidance: parsedConversation.data.guidance,
-        previewData: parsedConversation.data.previewData ?? null,
+        state: finalState,
+        previewData: mergedPreview,
+        missingFields,
+        suggestions: parsedConversation.data.suggestions ?? [],
+        readyToGenerate,
       });
     }
 
@@ -206,7 +258,17 @@ Generate an organisational structure for: ${prompt}`;
       );
     }
 
-    return NextResponse.json(parsedTemplate.data);
+    const canonicalTemplate = intakeStateToTemplate(canonicalState);
+    const mergedTemplate = mergeTemplates(canonicalTemplate, parsedTemplate.data);
+
+    if (!mergedTemplate) {
+      return NextResponse.json(
+        { error: "Generated template was empty after merge." },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json(mergedTemplate);
   } catch (error) {
     if (error instanceof AIConfigError) {
       return NextResponse.json(
@@ -219,10 +281,6 @@ Generate an organisational structure for: ${prompt}`;
     }
 
     console.error("Generate API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate organisation." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate organisation." }, { status: 500 });
   }
 }
-
