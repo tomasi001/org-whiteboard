@@ -38,7 +38,13 @@ Governance structure may evolve without changing runtime behavior unless explici
 - [x] behavior-change protocol defined
 - [x] source-of-truth precedence defined
 
-## Validation Gate for Docs-Only Alignment
-- [x] confirm no runtime files changed
-- [x] confirm no test logic changed
-- [x] confirm only governance/documentation surfaces were edited
+## Validation Gates
+### Docs-only alignment (apply only when the change set is docs-only)
+- [ ] confirm no runtime files changed
+- [ ] confirm no test logic changed
+- [ ] confirm only governance/documentation surfaces were edited
+
+### Runtime remediation alignment
+- [x] `pnpm run check` passes (lint, type-check, test, build)
+- [x] `pnpm run test:e2e` passes
+- [x] local runtime boot probe passes

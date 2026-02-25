@@ -12,6 +12,7 @@ This folder is the operational control plane for governing and maintaining Org W
 - `CHANGE_MAP.md`: exact edit points for controlled changes.
 - `TRAINING_AND_MAINTENANCE.md`: operator workflow and maintenance protocol.
 - `PARITY_CHECKLIST.md`: governance alignment checklist.
+- `COMPLIANCE_REMEDIATION_LOG.md`: executed remediation runs with verification evidence.
 
 ## Canonical Runtime Surfaces
 - Client state orchestration: `src/contexts/WhiteboardContext.tsx`
