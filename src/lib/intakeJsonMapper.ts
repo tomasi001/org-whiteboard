@@ -379,20 +379,203 @@ function extractCompanyName(root: JsonRecord): string | undefined {
   ]);
 }
 
-export function intakeStateFromLooseJson(input: unknown): OrgIntakeState {
-  if (!isRecord(input)) return {};
-
-  const departments = dedupeDepartments([
-    ...extractPillarDepartments(input),
-    ...extractGenericDepartments(input),
-    ...extractExecutiveDepartment(input),
-  ]);
+function mergeMappedStates(states: OrgIntakeState[]): OrgIntakeState {
+  const goals = [...new Set(states.flatMap((state) => state.goals ?? []))];
+  const departments = dedupeDepartments(states.flatMap((state) => state.departments ?? []));
+  const workflows = dedupeWorkflows(states.flatMap((state) => state.workflows ?? []));
 
   return {
-    name: extractCompanyName(input),
-    description: extractCompanyDescription(input),
-    goals: extractGoals(input),
+    name: states.map((state) => state.name).find(Boolean),
+    description: states.map((state) => state.description).find(Boolean),
+    goals,
     departments,
-    workflows: extractWorkflows(input),
+    workflows,
+  };
+}
+
+function extractRootCandidates(root: JsonRecord): JsonRecord[] {
+  const candidates: JsonRecord[] = [root];
+  const wrapperKeys = [
+    "organisation",
+    "organization",
+    "org",
+    "company",
+    "data",
+    "payload",
+    "template",
+    "structure",
+    "whiteboard",
+  ];
+
+  for (const key of wrapperKeys) {
+    const nested = getRecord(root, key);
+    if (!nested) continue;
+    candidates.push(nested);
+  }
+
+  return candidates;
+}
+
+function ensureDepartment(
+  byName: Map<string, OrgTemplateDepartment>,
+  name: string,
+  description?: string
+): OrgTemplateDepartment {
+  const key = name.toLowerCase();
+  const existing = byName.get(key);
+
+  if (existing) {
+    if (description && !existing.description) {
+      existing.description = description;
+    }
+    return existing;
+  }
+
+  const department: OrgTemplateDepartment = {
+    name,
+    description,
+    teams: [],
+  };
+
+  byName.set(key, department);
+  return department;
+}
+
+function ensureTeam(department: OrgTemplateDepartment, teamName: string, description?: string): void {
+  const teams = department.teams ?? [];
+  const existing = teams.find((team) => team.name.toLowerCase() === teamName.toLowerCase());
+
+  if (existing) {
+    if (description && !existing.description) {
+      existing.description = description;
+    }
+    return;
+  }
+
+  teams.push({ name: teamName, description });
+  department.teams = teams;
+}
+
+function ensureWorkflow(
+  byName: Map<string, OrgTemplateWorkflow>,
+  workflowName: string,
+  typeHint?: string,
+  description?: string
+): void {
+  const key = workflowName.toLowerCase();
+  const existing = byName.get(key);
+
+  if (existing) {
+    if (description && !existing.description) {
+      existing.description = description;
+    }
+    return;
+  }
+
+  byName.set(key, {
+    name: workflowName,
+    type: typeHint === "linear" || typeHint === "agentic"
+      ? typeHint
+      : inferWorkflowType(`${workflowName} ${description ?? ""}`),
+    description,
+  });
+}
+
+function extractTreeState(root: JsonRecord): OrgIntakeState {
+  const directRootNode = getRecord(root, "rootNode");
+  const nestedWhiteboard = getRecord(root, "whiteboard");
+  const nestedRootNode = nestedWhiteboard ? getRecord(nestedWhiteboard, "rootNode") : undefined;
+  const treeRoot = directRootNode ?? nestedRootNode;
+
+  if (!treeRoot) return {};
+
+  const departments = new Map<string, OrgTemplateDepartment>();
+  const workflows = new Map<string, OrgTemplateWorkflow>();
+
+  const visit = (node: JsonRecord, currentDepartment?: OrgTemplateDepartment) => {
+    const nodeName = getTextByKeys(node, ["name", "title", "label"]);
+    const nodeType = (getTextByKeys(node, ["type", "nodeType", "kind"]) ?? "").toLowerCase();
+    const description = getTextByKeys(node, ["description", "summary"]);
+
+    let nextDepartment = currentDepartment;
+
+    if (nodeName && nodeType === "department") {
+      nextDepartment = ensureDepartment(departments, nodeName, description);
+    } else if (nodeName && nodeType === "team" && currentDepartment) {
+      ensureTeam(currentDepartment, nodeName, description);
+    } else if (
+      nodeName &&
+      (nodeType === "workflow" ||
+        nodeType === "process" ||
+        nodeType === "automation" ||
+        nodeType === "agentswarm")
+    ) {
+      ensureWorkflow(workflows, nodeName, nodeType, description);
+    }
+
+    const children = getValue(node, "children");
+    if (!Array.isArray(children)) return;
+
+    for (const child of children) {
+      if (!isRecord(child)) continue;
+      visit(child, nextDepartment);
+    }
+  };
+
+  visit(treeRoot);
+
+  return {
+    name: extractCompanyName(root) ?? getTextByKeys(treeRoot, ["name"]),
+    description: extractCompanyDescription(root) ?? getTextByKeys(treeRoot, ["description"]),
+    departments: [...departments.values()],
+    workflows: [...workflows.values()],
+  };
+}
+
+function mapArrayInput(input: unknown[]): OrgIntakeState {
+  const fromStrings = input
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => normaliseText(item))
+    .filter(Boolean)
+    .map((name) => ({ name }));
+
+  const fromRecords = input
+    .filter((item): item is JsonRecord => isRecord(item))
+    .map((item) => intakeStateFromLooseJson(item));
+
+  const merged = mergeMappedStates(fromRecords);
+  return {
+    ...merged,
+    departments: dedupeDepartments([...(merged.departments ?? []), ...fromStrings]),
+  };
+}
+
+export function intakeStateFromLooseJson(input: unknown): OrgIntakeState {
+  if (Array.isArray(input)) {
+    return mapArrayInput(input);
+  }
+
+  if (!isRecord(input)) return {};
+
+  const roots = extractRootCandidates(input);
+
+  const structuralStates = roots.map((root) => ({
+    name: extractCompanyName(root),
+    description: extractCompanyDescription(root),
+    goals: extractGoals(root),
+    departments: dedupeDepartments([
+      ...extractPillarDepartments(root),
+      ...extractGenericDepartments(root),
+      ...extractExecutiveDepartment(root),
+    ]),
+    workflows: extractWorkflows(root),
+  }));
+
+  const treeStates = roots.map(extractTreeState);
+  const merged = mergeMappedStates([...structuralStates, ...treeStates]);
+
+  return {
+    ...merged,
+    goals: [...new Set([...structuralStates.flatMap((state) => state.goals ?? []), ...(merged.goals ?? [])])],
   };
 }

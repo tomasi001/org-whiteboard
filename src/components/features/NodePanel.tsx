@@ -71,14 +71,15 @@ export function NodePanel() {
   const [editLayerColor, setEditLayerColor] = useState("#fffadc");
 
   const currentNode = selectedNode || breadcrumbs[breadcrumbs.length - 1];
-  const boardKind = currentWhiteboard?.kind ?? "organisation";
 
   const validChildTypes = useMemo(() => {
     if (!currentNode || !currentWhiteboard) return [];
-    return getAllowedChildTypes(currentNode.type, boardKind);
-  }, [boardKind, currentNode, currentWhiteboard]);
+    return getAllowedChildTypes(currentNode.type);
+  }, [currentNode, currentWhiteboard]);
 
-  const defaultChildType = validChildTypes[0] || "department";
+  const defaultChildType = validChildTypes.includes("department")
+    ? "department"
+    : validChildTypes[0] || "department";
   const isEditingNode = selectedNode ? editingNodeId === selectedNode.id : false;
 
   const parentOptions = useMemo(() => {
@@ -93,14 +94,14 @@ export function NodePanel() {
       .filter((node) => {
         if (node.id === selectedNode.id) return false;
         if (descendantIds.has(node.id)) return false;
-        return getAllowedChildTypes(node.type, boardKind).includes(selectedNode.type);
+        return true;
       })
       .map((node) => ({
         id: node.id,
         name: node.name,
         typeLabel: nodeTypeLabels[node.type],
       }));
-  }, [selectedNode, currentWhiteboard, boardKind]);
+  }, [selectedNode, currentWhiteboard]);
 
   const handleOpenAddNode = () => {
     setNewNodeType(defaultChildType);

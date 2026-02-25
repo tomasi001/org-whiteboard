@@ -25,6 +25,7 @@ import {
 } from "@/lib/orgIntake";
 import type { OrgDataSummary, OrgIntakeState } from "@/lib/orgIntake";
 import type { OrgTemplate } from "@/types/orgTemplate";
+import { JsonNormalizationError, normalizeJsonInput } from "@/lib/jsonNormalization";
 
 interface OrgBuilderWizardProps {
   onClose: () => void;
@@ -143,7 +144,8 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
 
   const callConversation = async (
     userPrompt: string,
-    source: "message" | "json" | "document"
+    source: "message" | "json" | "document",
+    structuredJson?: string
   ): Promise<ConversationResponse> => {
     const response = await fetch("/api/generate", {
       method: "POST",
@@ -154,6 +156,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
         state: intakeStateRef.current,
         source,
         conversationHistory: asHistory(messagesRef.current),
+        structuredJson,
       }),
     });
 
@@ -182,13 +185,14 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
   const runConversationTurn = async (
     userVisibleMessage: string,
     modelPrompt: string,
-    source: "message" | "json" | "document"
+    source: "message" | "json" | "document",
+    structuredJson?: string
   ) => {
     setMessages((previous) => [...previous, { role: "user", content: userVisibleMessage }]);
     setIsLoading(true);
 
     try {
-      const response = await callConversation(modelPrompt, source);
+      const response = await callConversation(modelPrompt, source, structuredJson);
       const preview = applyConversationResult(response);
 
       setMessages((previous) => [
@@ -227,18 +231,23 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
     if (!jsonDraft.trim() || isLoading || isUploading) return;
 
     try {
-      const parsed = JSON.parse(jsonDraft) as unknown;
-      const normalizedJson = JSON.stringify(parsed, null, 2);
+      const { normalized } = normalizeJsonInput(jsonDraft);
       await runConversationTurn(
         "Pasted structured org JSON.",
-        `Use this structured JSON as baseline context and map it into the best org structure you can. The format may differ from your native template, so infer fields intelligently and continue with only unanswered essentials.\n\n${normalizedJson}`,
-        "json"
+        `Use this structured JSON as baseline context and map it into the best org structure you can. The format may differ from your native template, so infer fields intelligently and continue with only unanswered essentials.\n\n${normalized}`,
+        "json",
+        normalized
       );
 
       setShowJsonInput(false);
       setJsonDraft("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Invalid JSON payload.";
+      const message =
+        error instanceof JsonNormalizationError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Invalid JSON payload.";
       setMessages((previous) => [
         ...previous,
         {

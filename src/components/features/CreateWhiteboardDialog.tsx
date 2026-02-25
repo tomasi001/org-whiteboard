@@ -33,7 +33,10 @@ export function CreateWhiteboardDialog() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
-  const recentBoards = useMemo(() => whiteboards.slice(0, 8), [whiteboards]);
+  const recentBoards = useMemo(
+    () => whiteboards.filter((board) => (board.kind ?? "organisation") === "organisation").slice(0, 8),
+    [whiteboards]
+  );
 
   const handleCreate = () => {
     if (!name.trim()) return;

@@ -190,6 +190,38 @@ function upsertDocument(documents: Whiteboard[], document: Whiteboard): Whiteboa
   return next;
 }
 
+function collectBoardIdsForRemoval(documents: Whiteboard[], rootBoardId: string): Set<string> {
+  const ids = new Set<string>([rootBoardId]);
+  let expanded = true;
+
+  while (expanded) {
+    expanded = false;
+
+    for (const document of documents) {
+      if (!document.parentBoardId) continue;
+      if (!ids.has(document.parentBoardId) || ids.has(document.id)) continue;
+      ids.add(document.id);
+      expanded = true;
+    }
+  }
+
+  return ids;
+}
+
+function collectLinkedAutomationBoardIds(node: WhiteboardNode): string[] {
+  const ids: string[] = [];
+
+  const visit = (current: WhiteboardNode) => {
+    if (current.automationBoardId) {
+      ids.push(current.automationBoardId);
+    }
+    current.children.forEach(visit);
+  };
+
+  visit(node);
+  return ids;
+}
+
 function normalizeUiForDocument(ui: UiState, document: Whiteboard | null): UiState {
   if (!document) {
     return {
@@ -392,9 +424,11 @@ function reducer(state: InternalState, action: Action): InternalState {
     }
 
     case "DELETE_WHITEBOARD": {
-      const documents = state.documents.filter((entry) => entry.id !== action.payload.id);
+      const idsToDelete = collectBoardIdsForRemoval(state.documents, action.payload.id);
+      const documents = state.documents.filter((entry) => !idsToDelete.has(entry.id));
+      const removedActiveBoard = state.activeWhiteboardId ? idsToDelete.has(state.activeWhiteboardId) : false;
 
-      if (state.activeWhiteboardId !== action.payload.id) {
+      if (!removedActiveBoard) {
         return {
           ...state,
           documents,
@@ -417,9 +451,8 @@ function reducer(state: InternalState, action: Action): InternalState {
         };
       }
 
-      const documents = state.documents.filter(
-        (document) => document.id !== state.activeWhiteboardId
-      );
+      const idsToDelete = collectBoardIdsForRemoval(state.documents, state.activeWhiteboardId);
+      const documents = state.documents.filter((document) => !idsToDelete.has(document.id));
 
       return {
         documents,
@@ -617,19 +650,39 @@ function reducer(state: InternalState, action: Action): InternalState {
         };
       });
 
-    case "DELETE_NODE":
-      return mapActiveDocument(state, (document) => {
-        if (document.rootNode.id === action.payload.id) return document;
+    case "DELETE_NODE": {
+      const activeDocument = getActiveDocument(state);
+      if (!activeDocument) return state;
+      if (activeDocument.rootNode.id === action.payload.id) return state;
 
-        const rootNode = deleteNodeFromTree(document.rootNode, action.payload.id);
-        if (rootNode === document.rootNode) return document;
+      const targetNode = findNodeById(activeDocument.rootNode, action.payload.id);
+      if (!targetNode) return state;
 
-        return {
-          ...document,
-          rootNode,
-          updatedAt: new Date(),
-        };
+      const rootNode = deleteNodeFromTree(activeDocument.rootNode, action.payload.id);
+      if (rootNode === activeDocument.rootNode) return state;
+
+      const linkedAutomationBoardIds = collectLinkedAutomationBoardIds(targetNode);
+      const nestedBoardIds = new Set<string>();
+      linkedAutomationBoardIds.forEach((boardId) => {
+        collectBoardIdsForRemoval(state.documents, boardId).forEach((id) => nestedBoardIds.add(id));
       });
+
+      const updatedDocument: Whiteboard = withBoardDefaults({
+        ...activeDocument,
+        rootNode,
+        updatedAt: new Date(),
+      });
+
+      const documents = state.documents
+        .filter((document) => !nestedBoardIds.has(document.id))
+        .map((document) => (document.id === updatedDocument.id ? updatedDocument : document));
+
+      return {
+        documents,
+        activeWhiteboardId: updatedDocument.id,
+        ui: normalizeUiForDocument(state.ui, updatedDocument),
+      };
+    }
 
     case "SET_LAYOUT_MODE":
       return mapActiveDocument(state, (document) => ({

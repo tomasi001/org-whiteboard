@@ -97,6 +97,7 @@ export const generateRequestSchema = z.object({
   orgData: z.record(z.string(), z.unknown()).optional(),
   state: orgIntakeStateSchema.optional(),
   source: z.enum(["message", "json", "document"]).optional(),
+  structuredJson: z.string().trim().max(200_000).optional(),
   conversationHistory: z.array(conversationHistoryMessageSchema).max(24).optional(),
   currentStep: z.string().trim().optional(),
 });

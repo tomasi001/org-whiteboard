@@ -18,6 +18,7 @@ import {
 import type { OrgIntakeState } from "@/lib/orgIntake";
 import type { OrgTemplateDepartment, OrgTemplateWorkflow } from "@/types/orgTemplate";
 import { intakeStateFromLooseJson } from "@/lib/intakeJsonMapper";
+import { normalizeJsonInput } from "@/lib/jsonNormalization";
 
 const GENERATE_SYSTEM_PROMPT = `You are an expert organisational designer AI.
 
@@ -343,13 +344,10 @@ function inferStateFromText(text: string): OrgIntakeState {
   };
 }
 
-function inferStateFromJsonPrompt(prompt: string): OrgIntakeState {
-  const jsonString = extractFirstJsonObject(prompt);
-  if (!jsonString) return {};
-
+function inferStateFromJsonPayload(payload: string): OrgIntakeState {
   try {
-    const parsed = JSON.parse(jsonString) as unknown;
-    return intakeStateFromLooseJson(parsed);
+    const normalized = normalizeJsonInput(payload);
+    return intakeStateFromLooseJson(normalized.value);
   } catch {
     return {};
   }
@@ -357,6 +355,7 @@ function inferStateFromJsonPrompt(prompt: string): OrgIntakeState {
 
 function friendlyMissingFields(missingFields: string[]): string[] {
   const map: Record<string, string> = {
+    "at least one organisation seed detail": "at least one organisation seed detail",
     "organisation name": "company name",
     "organisation description": "what your company does",
     "at least one department or agent layer": "at least one department or agent layer",
@@ -434,10 +433,13 @@ function buildGuidance(state: OrgIntakeState, missingFields: string[]): string {
 function buildFallbackConversationPayload(
   canonicalState: OrgIntakeState,
   prompt: string,
-  source: "message" | "json" | "document" | undefined
+  source: "message" | "json" | "document" | undefined,
+  jsonPayload?: string
 ) {
   const inferredState =
-    source === "json" ? inferStateFromJsonPrompt(prompt) : inferStateFromText(prompt);
+    source === "json"
+      ? inferStateFromJsonPayload(jsonPayload ?? prompt)
+      : inferStateFromText(prompt);
 
   const mergedState = mergeIntakeStates(canonicalState, inferredState);
   const preview = intakeStateToTemplate(mergedState);
@@ -480,11 +482,7 @@ function finaliseConversationPayload(
   );
 
   const inferredMissing = friendlyMissingFields(getMissingFields(finalState));
-  const modelMissing = friendlyMissingFields(modelPayload.missingFields);
-  const computedMissing =
-    modelMissing.length > 0
-      ? [...new Set([...inferredMissing, ...modelMissing])]
-      : inferredMissing;
+  const computedMissing = inferredMissing;
   const readyToGenerate = computedMissing.length === 0;
 
   return {
@@ -515,12 +513,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });
     }
 
-    const { prompt, mode: rawMode, state: rawState, conversationHistory, source } =
+    const { prompt, mode: rawMode, state: rawState, conversationHistory, source, structuredJson } =
       parsedRequest.data;
     const mode = rawMode === "conversation" ? "conversation" : "generate";
     const baseState = normaliseState(rawState);
-    const inferredJsonState = source === "json" ? inferStateFromJsonPrompt(prompt) : {};
+    const inferredJsonState =
+      source === "json" ? inferStateFromJsonPayload(structuredJson ?? prompt) : {};
     const canonicalState = mergeIntakeStates(baseState, inferredJsonState);
+
+    if (mode === "conversation" && source === "json") {
+      const preview = intakeStateToTemplate(canonicalState);
+      const missingFields = friendlyMissingFields(getMissingFields(canonicalState));
+
+      return NextResponse.json({
+        guidance: buildGuidance(canonicalState, missingFields),
+        state: canonicalState,
+        previewData: preview,
+        missingFields,
+        suggestions: buildSuggestions(canonicalState),
+        readyToGenerate: isReadyToGenerate(canonicalState),
+      });
+    }
 
     let content: string | null = null;
 
@@ -558,7 +571,7 @@ If intake data contains validated details, keep them in the final output.`;
     } catch (error) {
       if (mode === "conversation") {
         return NextResponse.json(
-          buildFallbackConversationPayload(canonicalState, prompt, source)
+          buildFallbackConversationPayload(canonicalState, prompt, source, structuredJson)
         );
       }
 
@@ -578,7 +591,7 @@ If intake data contains validated details, keep them in the final output.`;
     if (!content) {
       if (mode === "conversation") {
         return NextResponse.json(
-          buildFallbackConversationPayload(canonicalState, prompt, source)
+          buildFallbackConversationPayload(canonicalState, prompt, source, structuredJson)
         );
       }
 
@@ -593,7 +606,7 @@ If intake data contains validated details, keep them in the final output.`;
     if (!jsonString) {
       if (mode === "conversation") {
         return NextResponse.json(
-          buildFallbackConversationPayload(canonicalState, prompt, source)
+          buildFallbackConversationPayload(canonicalState, prompt, source, structuredJson)
         );
       }
 
@@ -610,7 +623,7 @@ If intake data contains validated details, keep them in the final output.`;
 
       if (!parsedConversation.success) {
         return NextResponse.json(
-          buildFallbackConversationPayload(canonicalState, prompt, source)
+          buildFallbackConversationPayload(canonicalState, prompt, source, structuredJson)
         );
       }
 

@@ -236,14 +236,15 @@ export function intakeStateToTemplate(state: OrgIntakeState): OrgTemplate | null
   const departments = mergeDepartments([], state.departments);
   const workflows = mergeWorkflows([], state.workflows);
   const name = cleanString(state.name);
+  const description = cleanString(state.description);
 
-  if (!name && departments.length === 0 && workflows.length === 0) {
+  if (!name && !description && departments.length === 0 && workflows.length === 0) {
     return null;
   }
 
   return {
     name: name ?? "Organisation",
-    description: cleanString(state.description),
+    description,
     departments,
     workflows,
   };
@@ -301,51 +302,10 @@ export function getMissingFields(state: OrgIntakeState): string[] {
   const template = intakeStateToTemplate(state);
 
   if (!template) {
-    return [
-      "organisation name",
-      "organisation description",
-      "at least one department or agent layer",
-    ];
+    return ["at least one organisation seed detail"];
   }
 
-  const departments = template.departments ?? [];
-  const teams = departments.flatMap((department) => department.teams ?? []);
-  const hasTopLevelWorkflow = (template.workflows ?? []).length > 0;
-  const hasWorkflow =
-    hasTopLevelWorkflow ||
-    departments.some((department) => (department.workflows ?? []).length > 0) ||
-    teams.some((team) => (team.workflows ?? []).length > 0);
-  const hasRoles = teams.some(
-    (team) => Boolean(team.teamLead) || (team.teamMembers?.length ?? 0) > 0
-  );
-
-  const missing: string[] = [];
-
-  if (!cleanString(template.name)) {
-    missing.push("organisation name");
-  }
-
-  if (!cleanString(template.description)) {
-    missing.push("organisation description");
-  }
-
-  if (departments.length === 0 && !hasTopLevelWorkflow) {
-    missing.push("at least one department or agent layer");
-  }
-
-  if (departments.length > 0 && teams.length === 0) {
-    missing.push("at least one team under a department");
-  }
-
-  if (!hasRoles) {
-    missing.push("key owners or team members");
-  }
-
-  if (!hasWorkflow) {
-    missing.push("at least one agent or automation flow");
-  }
-
-  return missing;
+  return [];
 }
 
 export function isReadyToGenerate(state: OrgIntakeState): boolean {
