@@ -21,6 +21,7 @@ import {
   emptyIntakeState,
   intakeStateToTemplate,
   isReadyToGenerate,
+  mergeTemplates,
   summarizeTemplate,
 } from "@/lib/orgIntake";
 import type { OrgDataSummary, OrgIntakeState } from "@/lib/orgIntake";
@@ -240,7 +241,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
       const { normalized } = normalizeJsonInput(jsonDraft);
       await runConversationTurn(
         "Pasted structured org JSON.",
-        `Use this structured JSON as baseline context and map it into the best org structure you can. The format may differ from your native template, so infer fields intelligently and continue with only unanswered essentials.\n\n${normalized}`,
+        "Use the structured JSON provided in structuredJson as baseline context, map it into a practical org structure, and continue with only unanswered essentials.",
         "json",
         normalized
       );
@@ -335,6 +336,8 @@ ${parsed.extractedText}`;
   const handleGenerate = async () => {
     if (isLoading || isUploading) return;
 
+    const localTemplate = intakeStateToTemplate(intakeStateRef.current);
+
     setIsLoading(true);
     setMessages((previous) => [
       ...previous,
@@ -345,11 +348,8 @@ ${parsed.extractedText}`;
     ]);
 
     try {
-      const prompt = `Generate a complete organisation structure from this intake data.
-
-${JSON.stringify(intakeStateRef.current, null, 2)}
-
-Preserve confirmed details and fill practical gaps.`;
+      const prompt =
+        "Generate a complete organisation structure from the provided intake data. Preserve confirmed details and fill practical gaps.";
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -369,10 +369,14 @@ Preserve confirmed details and fill practical gaps.`;
       }
 
       const generated = (await response.json()) as OrgTemplate;
-      setCurrentWhiteboard(buildWhiteboardFromTemplate(generated));
-      onClose();
+      const merged = mergeTemplates(localTemplate, generated) ?? generated;
+      continueToWhiteboard(merged);
     } catch (error) {
       console.error("Generate error:", error);
+      if (localTemplate) {
+        continueToWhiteboard(localTemplate);
+        return;
+      }
       setMessages((previous) => [
         ...previous,
         {

@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { buildWhiteboardFromTemplate } from "@/lib/orgTemplate";
+import { intakeStateToTemplate } from "@/lib/orgIntake";
+import { intakeStateFromLooseJson } from "@/lib/intakeJsonMapper";
+import { normalizeJsonInput } from "@/lib/jsonNormalization";
 import type { OrgTemplate } from "@/types/orgTemplate";
 
 interface GenerateOrgDialogProps {
@@ -18,9 +21,33 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tryTemplateFromJsonPrompt = (value: string): OrgTemplate | null => {
+    try {
+      const { value: parsed } = normalizeJsonInput(value);
+      const intake = intakeStateFromLooseJson(parsed);
+      return intakeStateToTemplate(intake);
+    } catch {
+      return null;
+    }
+  };
+
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt) {
       setError("Please describe your organization");
+      return;
+    }
+
+    const jsonTemplate = tryTemplateFromJsonPrompt(trimmedPrompt);
+    if (jsonTemplate) {
+      setCurrentWhiteboard(buildWhiteboardFromTemplate(jsonTemplate));
+      onClose();
+      return;
+    }
+
+    if (trimmedPrompt.length > 50_000) {
+      setError("Input is too large for quick generate. Use Guided Setup for large payloads.");
       return;
     }
 
@@ -31,7 +58,7 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: trimmedPrompt, mode: "generate" }),
       });
 
       if (!response.ok) {

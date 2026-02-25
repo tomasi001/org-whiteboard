@@ -54,3 +54,70 @@ test("normalizes pasted JSON and allows mini-org readiness", async ({ page }) =>
   await page.getByRole("button", { name: "Confirm & Continue" }).first().click();
   await expect(page.getByRole("banner").getByText("Mini Org")).toBeVisible();
 });
+
+test("guided setup falls back to mapped template when generate API fails", async ({ page }) => {
+  await page.route("**/api/generate", async (route) => {
+    const request = route.request();
+    const body = request.postData();
+
+    if (!body) {
+      await route.continue();
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(body) as { mode?: string };
+      if (payload.mode === "generate") {
+        await route.fulfill({
+          status: 502,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "Simulated generation failure" }),
+        });
+        return;
+      }
+    } catch {
+      // fall through and continue
+    }
+
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Guided Setup" }).click();
+  await page.getByRole("button", { name: "Paste JSON" }).click();
+  await page.getByPlaceholder("Paste your org JSON here...").fill(`{
+  "name": "Fallback Org",
+  "departments": [
+    {
+      "name": "Operations",
+      "teams": [{ "name": "Core Ops", "teamMembers": ["Owner"] }]
+    }
+  ]
+}`);
+  await page.getByRole("button", { name: "Use This JSON" }).click();
+  await page.getByRole("button", { name: "Generate Org Chart" }).click();
+
+  await expect(page.getByRole("banner").getByText("Fallback Org")).toBeVisible();
+});
+
+test("quick generate accepts pasted JSON and opens the main whiteboard", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Quick Generate" }).click();
+
+  await page
+    .getByPlaceholder(/Describe your organization/i)
+    .fill(`\`\`\`json
+{
+  "name": "Quick JSON Org",
+  "departments": [
+    {
+      "name": "Sales",
+      "teams": [{ "name": "Outbound", "teamMembers": ["SDR 1", "AE 1"] }]
+    }
+  ]
+}
+\`\`\``);
+
+  await page.getByRole("button", { name: "Generate with AI" }).click();
+  await expect(page.getByRole("banner").getByText("Quick JSON Org")).toBeVisible();
+});
