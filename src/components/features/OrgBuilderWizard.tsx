@@ -121,7 +121,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
   const [missingFields, setMissingFields] = useState<string[]>([
     "organisation name",
     "organisation description",
-    "at least one department or core workflow",
+    "at least one department or agent layer",
   ]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [readyToGenerate, setReadyToGenerate] = useState(false);
@@ -403,7 +403,7 @@ Preserve confirmed details and fill practical gaps.`;
           <div className="grid gap-2 md:grid-cols-2 text-xs font-satoshi text-cardzzz-cream/90">
             <div>
               <span className="text-cardzzz-cream">Live snapshot:</span>{" "}
-              {`${orgSummary.departments.length} departments, ${orgSummary.teams.length} teams, ${orgSummary.roles.length} people, ${orgSummary.workflows.length} workflows`}
+              {`${orgSummary.departments.length} departments, ${orgSummary.teams.length} teams, ${orgSummary.roles.length} people, ${orgSummary.workflows.length} agent flows`}
             </div>
             <div>
               <span className="text-cardzzz-cream">Company:</span>{" "}

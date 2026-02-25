@@ -81,7 +81,7 @@ export function GenerateOrgDialog({ onClose }: GenerateOrgDialogProps) {
         
         <CardContent className="space-y-4">
           <p className="text-sm text-cardzzz-cream/85 font-satoshi">
-            Describe your organization in detail. The AI will think about the structure and generate a comprehensive hierarchy with departments, teams, roles, tools, workflows, and automations.
+            Describe your organization in detail. The AI will generate a comprehensive hierarchy with departments, teams, agents, tools, and automations.
           </p>
 
           <div>

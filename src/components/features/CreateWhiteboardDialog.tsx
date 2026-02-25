@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, X, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, X, Sparkles, FolderOpen, Clock3, Trash2 } from "lucide-react";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -9,13 +9,31 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { GenerateOrgDialog } from "./GenerateOrgDialog";
 import { OrgBuilderWizard } from "./OrgBuilderWizard";
 
+function formatDate(value: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(value);
+}
+
 export function CreateWhiteboardDialog() {
-  const { createWhiteboard, currentWhiteboard } = useWhiteboard();
+  const {
+    createWhiteboard,
+    currentWhiteboard,
+    whiteboards,
+    openWhiteboard,
+    deleteWhiteboard,
+  } = useWhiteboard();
   const [isOpen, setIsOpen] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+
+  const recentBoards = useMemo(() => whiteboards.slice(0, 8), [whiteboards]);
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -79,47 +97,117 @@ export function CreateWhiteboardDialog() {
   }
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
-      <div className="text-center max-w-lg">
+    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-6 overflow-auto">
+      <div className="text-center w-full max-w-5xl my-8">
         <h1 className="text-4xl font-roundo lowercase tracking-wide text-cardzzz-cream mb-4">
           org whiteboard
         </h1>
         <p className="text-lg text-cardzzz-cream/85 mb-8 font-satoshi">
-          Build nested hierarchical structures with drill-down capabilities for departments, roles, and workflows.
+          Build nested organisational structures, automation maps, and reusable operational charts.
         </p>
-        
+
+        {recentBoards.length > 0 && (
+          <div className="mb-8 text-left">
+            <div className="flex items-center gap-2 mb-3">
+              <FolderOpen className="w-4 h-4 text-cardzzz-cream" />
+              <h2 className="font-roundo lowercase text-cardzzz-cream">saved boards</h2>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {recentBoards.map((board) => (
+                <div
+                  key={board.id}
+                  className="flex items-center justify-between gap-3 p-3 bg-white/10 backdrop-blur-md rounded-[16.168px] border border-white/20"
+                >
+                  <button
+                    type="button"
+                    onClick={() => openWhiteboard(board.id)}
+                    className="text-left flex-1 min-w-0"
+                  >
+                    <p className="font-satoshi text-cardzzz-cream truncate">{board.name}</p>
+                    <p className="text-xs text-cardzzz-cream/70 font-satoshi truncate">
+                      {board.kind === "automation" ? "Automation" : "Organisation"} board
+                    </p>
+                    <p className="text-xs text-cardzzz-cream/65 font-satoshi mt-1 flex items-center gap-1">
+                      <Clock3 className="w-3 h-3" />
+                      Updated {formatDate(board.updatedAt)}
+                    </p>
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openWhiteboard(board.id)}
+                      title="Open board"
+                    >
+                      Open
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm(`Delete \"${board.name}\" from dashboard history?`)) {
+                          deleteWhiteboard(board.id);
+                        }
+                      }}
+                      title="Delete board"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 text-left max-w-md mx-auto mb-8">
           <div className="flex items-start gap-3 p-4 bg-white/10 backdrop-blur-md rounded-[16.168px] border border-white/20">
             <div className="p-2 bg-cardzzz-cream/20 text-cardzzz-cream rounded-[12px]">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
             </div>
             <div>
               <h3 className="font-roundo lowercase text-cardzzz-cream">nested structures</h3>
-              <p className="text-sm text-cardzzz-cream/80 font-satoshi">Click into departments, teams, and roles for deeper insight</p>
+              <p className="text-sm text-cardzzz-cream/80 font-satoshi">
+                Drill into departments, teams, agents, and automation-specific flow maps.
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-start gap-3 p-4 bg-white/10 backdrop-blur-md rounded-[16.168px] border border-white/20">
             <div className="p-2 bg-cardzzz-cream/20 text-cardzzz-cream rounded-[12px]">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+                />
               </svg>
             </div>
             <div>
-              <h3 className="font-roundo lowercase text-cardzzz-cream">workflow mapping</h3>
-              <p className="text-sm text-cardzzz-cream/80 font-satoshi">Visualise both agentic and linear automation structures</p>
+              <h3 className="font-roundo lowercase text-cardzzz-cream">history + versioning</h3>
+              <p className="text-sm text-cardzzz-cream/80 font-satoshi">
+                Every saved board stays in your dashboard so you can reopen and continue.
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-start gap-3 p-4 bg-white/10 backdrop-blur-md rounded-[16.168px] border border-white/20">
             <div className="p-2 bg-cardzzz-cream/20 text-cardzzz-cream rounded-[12px]">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-roundo lowercase text-cardzzz-cream">ai generation</h3>
-              <p className="text-sm text-cardzzz-cream/80 font-satoshi">Describe your org and let AI build the structure</p>
+              <p className="text-sm text-cardzzz-cream/80 font-satoshi">
+                Start with chat, docs, or JSON and generate a structured map fast.
+              </p>
             </div>
           </div>
         </div>
@@ -129,7 +217,7 @@ export function CreateWhiteboardDialog() {
             onClick={() => setIsOpen(true)}
             size="lg"
             variant="outline"
-            className="px-[25px] whitespace-nowrap"
+            className="min-w-[220px] px-[25px] whitespace-nowrap"
           >
             <Plus className="w-5 h-5 mr-2" />
             Create Blank
@@ -138,7 +226,7 @@ export function CreateWhiteboardDialog() {
             onClick={() => setShowWizard(true)}
             size="lg"
             variant="secondary"
-            className="px-[25px] whitespace-nowrap"
+            className="min-w-[220px] px-[25px] whitespace-nowrap"
           >
             <Sparkles className="w-5 h-5 mr-2" />
             Guided Setup
@@ -146,7 +234,7 @@ export function CreateWhiteboardDialog() {
           <Button
             onClick={() => setShowGenerate(true)}
             size="lg"
-            className="px-[25px] whitespace-nowrap"
+            className="min-w-[220px] px-[25px] whitespace-nowrap"
           >
             <Sparkles className="w-5 h-5 mr-2" />
             Quick Generate

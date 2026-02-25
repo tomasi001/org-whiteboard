@@ -303,16 +303,19 @@ export function MiniCanvasPreview({ rootNode, onNodeClick, onConfirm, onCancel }
                     {ln.node.type === "organisation" && "🏢"}
                     {ln.node.type === "department" && "🏢"}
                     {ln.node.type === "team" && "👥"}
+                    {ln.node.type === "agentSwarm" && "🌀"}
                     {ln.node.type === "teamLead" && "👤"}
                     {ln.node.type === "teamMember" && "👤"}
+                    {ln.node.type === "agentLead" && "🤖"}
+                    {ln.node.type === "agentMember" && "🤖"}
                     {ln.node.type === "tool" && "🔧"}
                     {ln.node.type === "workflow" && "⚡"}
                     {ln.node.type === "process" && "⟳"}
                     {ln.node.type === "agent" && "🤖"}
                     {ln.node.type === "automation" && "⚡"}
                     {![
-                      "organisation", "department", "team", "teamLead",
-                      "teamMember", "tool", "workflow", "process",
+                      "organisation", "department", "team", "agentSwarm", "teamLead",
+                      "teamMember", "agentLead", "agentMember", "tool", "workflow", "process",
                       "agent", "automation"
                     ].includes(ln.node.type) && "📋"}
                   </div>

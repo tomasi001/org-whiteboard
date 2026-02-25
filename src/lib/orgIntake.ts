@@ -304,7 +304,7 @@ export function getMissingFields(state: OrgIntakeState): string[] {
     return [
       "organisation name",
       "organisation description",
-      "at least one department or core workflow",
+      "at least one department or agent layer",
     ];
   }
 
@@ -330,7 +330,7 @@ export function getMissingFields(state: OrgIntakeState): string[] {
   }
 
   if (departments.length === 0 && !hasTopLevelWorkflow) {
-    missing.push("at least one department or core workflow");
+    missing.push("at least one department or agent layer");
   }
 
   if (departments.length > 0 && teams.length === 0) {
@@ -342,7 +342,7 @@ export function getMissingFields(state: OrgIntakeState): string[] {
   }
 
   if (!hasWorkflow) {
-    missing.push("at least one workflow");
+    missing.push("at least one agent or automation flow");
   }
 
   return missing;

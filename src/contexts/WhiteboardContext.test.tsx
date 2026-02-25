@@ -93,4 +93,78 @@ describe("WhiteboardContext", () => {
       findByName(result.current.currentWhiteboard!.rootNode, "Engineering & Platform")
     ).toBeNull();
   });
+
+  it("supports dashboard history and board switching", () => {
+    const { result } = renderHook(() => useWhiteboard(), { wrapper });
+
+    act(() => {
+      result.current.createWhiteboard("Board One");
+    });
+    const firstId = result.current.currentWhiteboard!.id;
+
+    act(() => {
+      result.current.createWhiteboard("Board Two");
+    });
+    const secondId = result.current.currentWhiteboard!.id;
+
+    expect(result.current.whiteboards).toHaveLength(2);
+    expect(result.current.currentWhiteboard?.id).toBe(secondId);
+
+    act(() => {
+      result.current.openWhiteboard(firstId);
+    });
+    expect(result.current.currentWhiteboard?.id).toBe(firstId);
+
+    act(() => {
+      result.current.deleteWhiteboard(secondId);
+    });
+    expect(result.current.whiteboards).toHaveLength(1);
+    expect(result.current.whiteboards[0].id).toBe(firstId);
+  });
+
+  it("creates and opens a nested automation board", () => {
+    const { result } = renderHook(() => useWhiteboard(), { wrapper });
+
+    act(() => {
+      result.current.createWhiteboard("Automation Test Org");
+    });
+
+    const rootId = result.current.currentWhiteboard!.rootNode.id;
+    act(() => {
+      result.current.createNode({ parentId: rootId, type: "department", name: "Ops" });
+    });
+
+    const department = findByName(result.current.currentWhiteboard!.rootNode, "Ops")!;
+    act(() => {
+      result.current.createNode({ parentId: department.id, type: "team", name: "Delivery" });
+    });
+
+    const team = findByName(result.current.currentWhiteboard!.rootNode, "Delivery")!;
+    act(() => {
+      result.current.createNode({ parentId: team.id, type: "agent", name: "Lead Router" });
+    });
+
+    const agent = findByName(result.current.currentWhiteboard!.rootNode, "Lead Router")!;
+    act(() => {
+      result.current.createNode({
+        parentId: agent.id,
+        type: "automation",
+        name: "Lead Qualification",
+      });
+    });
+
+    const automation = findByName(result.current.currentWhiteboard!.rootNode, "Lead Qualification")!;
+    act(() => {
+      result.current.openAutomationBoard(automation.id);
+    });
+
+    expect(result.current.currentWhiteboard?.kind).toBe("automation");
+    expect(result.current.whiteboards).toHaveLength(2);
+
+    act(() => {
+      result.current.returnToParentBoard();
+    });
+
+    expect(result.current.currentWhiteboard?.kind).toBe("organisation");
+  });
 });

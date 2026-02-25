@@ -37,6 +37,14 @@ function buildNode(
   };
 }
 
+function withParentIds(node: WhiteboardNode, parentId?: string): WhiteboardNode {
+  return {
+    ...node,
+    parentId,
+    children: node.children.map((child) => withParentIds(child, node.id)),
+  };
+}
+
 function mapAgent(agent: OrgTemplateAgent): WhiteboardNode {
   const automations = (agent.automations ?? []).map((automation) =>
     buildNode("automation", automation)
@@ -49,17 +57,28 @@ function mapAgent(agent: OrgTemplateAgent): WhiteboardNode {
 }
 
 function mapProcess(process: OrgTemplateProcess): WhiteboardNode {
-  return buildNode("process", process.name, {
+  return buildNode("agent", process.name, {
     description: process.description,
     children: (process.agents ?? []).map(mapAgent),
   });
 }
 
 function mapWorkflow(workflow: OrgTemplateWorkflow): WhiteboardNode {
-  return buildNode("workflow", workflow.name, {
+  return buildNode("agentSwarm", workflow.name, {
     description: workflow.description,
     workflowType: workflow.type,
     children: (workflow.processes ?? []).map(mapProcess),
+  });
+}
+
+function mapWorkflowAsAgent(workflow: OrgTemplateWorkflow): WhiteboardNode {
+  const processAgents = (workflow.processes ?? []).map(mapProcess);
+  const hasNestedAgents = processAgents.length > 0;
+
+  return buildNode("agent", workflow.name, {
+    description: workflow.description,
+    workflowType: workflow.type,
+    children: hasNestedAgents ? processAgents : [],
   });
 }
 
@@ -74,7 +93,7 @@ function mapTeam(team: OrgTemplateTeam): WhiteboardNode {
     ...(team.teamMembers ?? []).map((member) => buildNode("teamMember", member))
   );
   children.push(...(team.tools ?? []).map((tool) => buildNode("tool", tool)));
-  children.push(...(team.workflows ?? []).map(mapWorkflow));
+  children.push(...(team.workflows ?? []).map(mapWorkflowAsAgent));
 
   return buildNode("team", team.name, {
     description: team.description,
@@ -99,10 +118,12 @@ export function buildRootNodeFromTemplate(template: OrgTemplate): WhiteboardNode
   children.push(...(template.departments ?? []).map(mapDepartment));
   children.push(...(template.workflows ?? []).map(mapWorkflow));
 
-  return buildNode("organisation", template.name, {
+  const root = buildNode("organisation", template.name, {
     description: template.description,
     children,
   });
+
+  return withParentIds(root);
 }
 
 export function buildWhiteboardFromTemplate(
@@ -116,9 +137,11 @@ export function buildWhiteboardFromTemplate(
     name: template.name,
     description: template.description,
     rootNode: buildRootNodeFromTemplate(template),
+    kind: "organisation",
+    layoutMode: "auto",
+    layerColors: {},
     createdAt: now,
     updatedAt: now,
     createdBy,
   };
 }
-

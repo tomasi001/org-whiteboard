@@ -35,7 +35,7 @@ Return JSON only in this exact shape:
   "targetName": "node-name-when-id-not-known",
   "reply": "short confirmation or clarification",
   "data": {
-    "type": "department|team|teamLead|teamMember|role|subRole|tool|workflow|process|agent|automation",
+    "type": "department|team|agentSwarm|teamLead|teamMember|agentLead|agentMember|role|subRole|tool|workflow|process|agent|automation",
     "name": "name when adding/updating",
     "description": "optional description",
     "workflowType": "agentic|linear"
@@ -131,7 +131,7 @@ function localAction(
     return {
       action: "none",
       reply:
-        "Try commands like: add a Marketing department, add a Frontend team, add tool Figma, add member John, or remove \"Node Name\".",
+        "Try commands like: add a Marketing department, add a Frontend team, add agent swarm RevOps, add agent Lead Router, add automation Lead Qualification, or remove \"Node Name\".",
     };
   }
 
@@ -178,6 +178,77 @@ function localAction(
       targetId: targetDepartment.id,
       reply: `Adding team "${name}" to ${targetDepartment.name}.`,
       data: { type: "team", name },
+    };
+  }
+
+  if (lower.includes("add") && (lower.includes("agent swarm") || lower.includes("swarm"))) {
+    const name = extractAddName(message, "swarm") ?? extractAddName(message, "agent swarm");
+    const targetDepartment =
+      selected?.type === "department"
+        ? selected
+        : inferNodeFromMessage(root, message, "department");
+
+    if (!targetDepartment) {
+      return {
+        action: "none",
+        reply:
+          "Select a department (or mention one by name) so I know where to add the agent swarm.",
+      };
+    }
+
+    if (!name) {
+      return {
+        action: "none",
+        reply: "Tell me the agent swarm name to add.",
+      };
+    }
+
+    return {
+      action: "add",
+      targetId: targetDepartment.id,
+      reply: `Adding agent swarm "${name}" to ${targetDepartment.name}.`,
+      data: { type: "agentSwarm", name },
+    };
+  }
+
+  if (lower.includes("add") && lower.includes("agent")) {
+    const name = extractAddName(message, "agent");
+    const validTypes: NodeType[] = [
+      "team",
+      "agentSwarm",
+      "teamLead",
+      "teamMember",
+      "agentLead",
+      "agentMember",
+      "agent",
+    ];
+
+    const target =
+      selected && validTypes.includes(selected.type)
+        ? selected
+        : inferNodeFromMessage(root, message, "team") ??
+          inferNodeFromMessage(root, message, "agentSwarm") ??
+          inferNodeFromMessage(root, message, "agent");
+
+    if (!target) {
+      return {
+        action: "none",
+        reply: "Select a team, swarm, or existing agent so I know where to add this agent.",
+      };
+    }
+
+    if (!name) {
+      return {
+        action: "none",
+        reply: "Tell me the agent name to add.",
+      };
+    }
+
+    return {
+      action: "add",
+      targetId: target.id,
+      reply: `Adding agent "${name}" under ${target.name}.`,
+      data: { type: "agent", name },
     };
   }
 
@@ -237,6 +308,36 @@ function localAction(
       targetId: target.id,
       reply: `Adding tool "${name}" to ${target.name}.`,
       data: { type: "tool", name },
+    };
+  }
+
+  if (lower.includes("add") && lower.includes("automation")) {
+    const name = extractAddName(message, "automation");
+    const validTypes: NodeType[] = ["agent", "agentLead", "agentMember", "tool"];
+    const target =
+      selected && validTypes.includes(selected.type)
+        ? selected
+        : inferNodeFromMessage(root, message, "agent");
+
+    if (!target) {
+      return {
+        action: "none",
+        reply: "Select an agent node (or mention one by name) to add an automation.",
+      };
+    }
+
+    if (!name) {
+      return {
+        action: "none",
+        reply: "Tell me the automation name to add.",
+      };
+    }
+
+    return {
+      action: "add",
+      targetId: target.id,
+      reply: `Adding automation "${name}" under ${target.name}.`,
+      data: { type: "automation", name },
     };
   }
 
@@ -381,4 +482,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

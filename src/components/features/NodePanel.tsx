@@ -1,18 +1,24 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, Plus, Trash2, Pencil, Check, ChevronRight } from "lucide-react";
+import { X, Plus, Trash2, Pencil, Check, ChevronRight, GitBranch } from "lucide-react";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import type { NodeType, WhiteboardNode, WorkflowType } from "@/types";
-import { hierarchyRules, nodeTypeLabels } from "@/lib/hierarchy";
+import {
+  getAllowedChildTypes,
+  getNodeLayerColor,
+  nodeTypeLabels,
+} from "@/lib/hierarchy";
 
 const workflowTypes: { type: WorkflowType; label: string }[] = [
   { type: "agentic", label: "Agentic" },
   { type: "linear", label: "Linear" },
 ];
+
+const workflowLikeNodeTypes = new Set<NodeType>(["workflow", "process"]);
 
 function collectNodes(root: WhiteboardNode): WhiteboardNode[] {
   const result: WhiteboardNode[] = [];
@@ -43,6 +49,8 @@ export function NodePanel() {
     moveNode,
     deleteNode,
     selectNode,
+    setLayerColor,
+    openAutomationBoard,
   } = useWhiteboard();
 
   const [isAddingNode, setIsAddingNode] = useState(false);
@@ -60,13 +68,15 @@ export function NodePanel() {
   const [editWorkflowType, setEditWorkflowType] = useState<WorkflowType | "">("");
   const [editDocumentationUrl, setEditDocumentationUrl] = useState("");
   const [editParentId, setEditParentId] = useState("");
+  const [editLayerColor, setEditLayerColor] = useState("#fffadc");
 
   const currentNode = selectedNode || breadcrumbs[breadcrumbs.length - 1];
+  const boardKind = currentWhiteboard?.kind ?? "organisation";
 
   const validChildTypes = useMemo(() => {
-    if (!currentNode) return [];
-    return hierarchyRules[currentNode.type] || [];
-  }, [currentNode]);
+    if (!currentNode || !currentWhiteboard) return [];
+    return getAllowedChildTypes(currentNode.type, boardKind);
+  }, [boardKind, currentNode, currentWhiteboard]);
 
   const defaultChildType = validChildTypes[0] || "department";
   const isEditingNode = selectedNode ? editingNodeId === selectedNode.id : false;
@@ -83,14 +93,14 @@ export function NodePanel() {
       .filter((node) => {
         if (node.id === selectedNode.id) return false;
         if (descendantIds.has(node.id)) return false;
-        return hierarchyRules[node.type]?.includes(selectedNode.type);
+        return getAllowedChildTypes(node.type, boardKind).includes(selectedNode.type);
       })
       .map((node) => ({
         id: node.id,
         name: node.name,
         typeLabel: nodeTypeLabels[node.type],
       }));
-  }, [selectedNode, currentWhiteboard]);
+  }, [selectedNode, currentWhiteboard, boardKind]);
 
   const handleOpenAddNode = () => {
     setNewNodeType(defaultChildType);
@@ -126,13 +136,10 @@ export function NodePanel() {
       name: editName.trim(),
       description: editDescription.trim() || undefined,
       departmentHead:
-        selectedNode.type === "department"
-          ? editDepartmentHead.trim() || undefined
-          : undefined,
-      workflowType:
-        selectedNode.type === "workflow" || selectedNode.type === "process"
-          ? editWorkflowType || undefined
-          : undefined,
+        selectedNode.type === "department" ? editDepartmentHead.trim() || undefined : undefined,
+      workflowType: workflowLikeNodeTypes.has(selectedNode.type)
+        ? editWorkflowType || undefined
+        : undefined,
       documentationUrl: editDocumentationUrl.trim() || undefined,
     });
 
@@ -145,6 +152,7 @@ export function NodePanel() {
       moveNode(selectedNode.id, editParentId);
     }
 
+    setLayerColor(selectedNode.type, editLayerColor);
     setEditingNodeId(null);
   };
 
@@ -157,6 +165,7 @@ export function NodePanel() {
     setEditWorkflowType(selectedNode.workflowType ?? "");
     setEditDocumentationUrl(selectedNode.documentationUrl ?? "");
     setEditParentId(selectedNode.parentId ?? "");
+    setEditLayerColor(getNodeLayerColor(selectedNode.type, currentWhiteboard?.layerColors));
     setEditingNodeId(selectedNode.id);
   };
 
@@ -232,6 +241,7 @@ export function NodePanel() {
                   Adding to: {nodeTypeLabels[currentNode?.type] || "Root"}
                 </p>
               </div>
+
               <div>
                 <label className="text-sm font-satoshi text-cardzzz-cream">Name</label>
                 <Input
@@ -241,6 +251,7 @@ export function NodePanel() {
                   className="mt-1"
                 />
               </div>
+
               <div>
                 <label className="text-sm font-satoshi text-cardzzz-cream">Description</label>
                 <Input
@@ -250,6 +261,7 @@ export function NodePanel() {
                   className="mt-1"
                 />
               </div>
+
               {newNodeType === "department" && (
                 <div>
                   <label className="text-sm font-satoshi text-cardzzz-cream">Department Head</label>
@@ -261,7 +273,8 @@ export function NodePanel() {
                   />
                 </div>
               )}
-              {(newNodeType === "workflow" || newNodeType === "process") && (
+
+              {workflowLikeNodeTypes.has(newNodeType) && (
                 <div>
                   <label className="text-sm font-satoshi text-cardzzz-cream">Workflow Type</label>
                   <select
@@ -331,6 +344,7 @@ export function NodePanel() {
                       className="mt-1"
                     />
                   </div>
+
                   <div>
                     <label className="text-sm font-satoshi text-cardzzz-cream">Description</label>
                     <textarea
@@ -352,7 +366,7 @@ export function NodePanel() {
                     </div>
                   )}
 
-                  {(selectedNode.type === "workflow" || selectedNode.type === "process") && (
+                  {workflowLikeNodeTypes.has(selectedNode.type) && (
                     <div>
                       <label className="text-sm font-satoshi text-cardzzz-cream">Workflow Type</label>
                       <select
@@ -371,6 +385,26 @@ export function NodePanel() {
                       </select>
                     </div>
                   )}
+
+                  <div>
+                    <label className="text-sm font-satoshi text-cardzzz-cream">Layer Colour</label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={editLayerColor}
+                        onChange={(event) => setEditLayerColor(event.target.value)}
+                        className="h-[42px] w-[54px] cursor-pointer rounded-[12px] border border-white/20 bg-black/20"
+                      />
+                      <Input
+                        value={editLayerColor}
+                        onChange={(event) => setEditLayerColor(event.target.value)}
+                        className="mt-0"
+                      />
+                    </div>
+                    <p className="text-xs text-cardzzz-cream/70 mt-1 font-satoshi">
+                      Applies to all {nodeTypeLabels[selectedNode.type].toLowerCase()} nodes in this board.
+                    </p>
+                  </div>
 
                   <div>
                     <label className="text-sm font-satoshi text-cardzzz-cream">Documentation URL</label>
@@ -407,10 +441,11 @@ export function NodePanel() {
                 <>
                   <div>
                     <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Type</span>
-                    <p className="text-sm text-cardzzz-cream capitalize font-satoshi">
-                      {selectedNode.type}
+                    <p className="text-sm text-cardzzz-cream font-satoshi">
+                      {nodeTypeLabels[selectedNode.type]}
                     </p>
                   </div>
+
                   {selectedNode.description && (
                     <div>
                       <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">
@@ -421,6 +456,7 @@ export function NodePanel() {
                       </p>
                     </div>
                   )}
+
                   {selectedNode.departmentHead && (
                     <div>
                       <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">
@@ -431,6 +467,7 @@ export function NodePanel() {
                       </p>
                     </div>
                   )}
+
                   {selectedNode.workflowType && (
                     <div>
                       <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">
@@ -441,6 +478,25 @@ export function NodePanel() {
                       </p>
                     </div>
                   )}
+
+                  <div>
+                    <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">Layer Colour</span>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div
+                        className="h-5 w-5 rounded-full border border-white/30"
+                        style={{
+                          backgroundColor: getNodeLayerColor(
+                            selectedNode.type,
+                            currentWhiteboard?.layerColors
+                          ),
+                        }}
+                      />
+                      <span className="text-sm text-cardzzz-cream/90 font-satoshi">
+                        {getNodeLayerColor(selectedNode.type, currentWhiteboard?.layerColors)}
+                      </span>
+                    </div>
+                  </div>
+
                   {selectedNode.documentationUrl && (
                     <div>
                       <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">
@@ -456,6 +512,18 @@ export function NodePanel() {
                       </a>
                     </div>
                   )}
+
+                  {selectedNode.type === "automation" && (
+                    <Button
+                      onClick={() => openAutomationBoard(selectedNode.id)}
+                      className="w-full"
+                      variant="secondary"
+                    >
+                      <GitBranch className="w-4 h-4 mr-2" />
+                      Open Automation Flow Board
+                    </Button>
+                  )}
+
                   {selectedNode.children.length > 0 && (
                     <div>
                       <span className="text-xs font-satoshi text-cardzzz-cream/70 uppercase">

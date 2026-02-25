@@ -1,6 +1,11 @@
-import type { CreateNodeInput, UpdateNodeInput, WhiteboardNode } from "@/types";
+import type {
+  CreateNodeInput,
+  UpdateNodeInput,
+  WhiteboardKind,
+  WhiteboardNode,
+} from "@/types";
 import { generateId } from "@/lib/utils";
-import { hierarchyRules } from "@/lib/hierarchy";
+import { getAllowedChildTypes } from "@/lib/hierarchy";
 
 function createNode(input: CreateNodeInput): WhiteboardNode {
   const now = new Date();
@@ -13,6 +18,7 @@ function createNode(input: CreateNodeInput): WhiteboardNode {
     parentId: input.parentId,
     children: [],
     position: input.position ?? { x: 0, y: 0 },
+    automationBoardId: undefined,
     departmentHead: input.departmentHead,
     workflowType: input.workflowType,
     documentationUrl: input.documentationUrl,
@@ -37,12 +43,19 @@ export function findNodeById(
 
 export function addNodeToTree(
   root: WhiteboardNode,
-  input: CreateNodeInput
+  input: CreateNodeInput,
+  boardKind: WhiteboardKind = "organisation"
 ): WhiteboardNode {
   const newNode = createNode(input);
+  const targetParentId = input.parentId ?? root.id;
 
   const visit = (node: WhiteboardNode): WhiteboardNode => {
-    if (!input.parentId || node.id === input.parentId) {
+    if (node.id === targetParentId) {
+      const allowedChildren = getAllowedChildTypes(node.type, boardKind);
+      if (!allowedChildren.includes(input.type)) {
+        return node;
+      }
+
       return {
         ...node,
         updatedAt: new Date(),
@@ -70,6 +83,7 @@ export function updateNodeInTree(
         name: input.name ?? node.name,
         description: input.description ?? node.description,
         position: input.position ?? node.position,
+        automationBoardId: input.automationBoardId ?? node.automationBoardId,
         documentationUrl: input.documentationUrl ?? node.documentationUrl,
         workflowType: input.workflowType ?? node.workflowType,
         departmentHead: input.departmentHead ?? node.departmentHead,
@@ -149,7 +163,8 @@ function insertExistingNode(
 export function reparentNodeInTree(
   root: WhiteboardNode,
   nodeId: string,
-  newParentId: string
+  newParentId: string,
+  boardKind: WhiteboardKind = "organisation"
 ): WhiteboardNode {
   if (root.id === nodeId) return root;
 
@@ -158,7 +173,7 @@ export function reparentNodeInTree(
 
   if (!nodeToMove || !newParent) return root;
   if (hasDescendant(nodeToMove, newParentId)) return root;
-  if (!hierarchyRules[newParent.type]?.includes(nodeToMove.type)) return root;
+  if (!getAllowedChildTypes(newParent.type, boardKind).includes(nodeToMove.type)) return root;
   if (nodeToMove.parentId === newParentId) return root;
 
   const { nextRoot, removedNode } = removeNodeById(root, nodeId);
@@ -195,6 +210,33 @@ export function collectNodeIds(node: WhiteboardNode): Set<string> {
 
   visit(node);
   return ids;
+}
+
+export function setNodePositionsInTree(
+  root: WhiteboardNode,
+  positions: Record<string, { x: number; y: number }>
+): WhiteboardNode {
+  const visit = (node: WhiteboardNode): WhiteboardNode => {
+    const nextPosition = positions[node.id];
+    const nextChildren = node.children.map(visit);
+    const childrenChanged = nextChildren.some((child, index) => child !== node.children[index]);
+    const positionChanged =
+      Boolean(nextPosition) &&
+      (nextPosition.x !== node.position.x || nextPosition.y !== node.position.y);
+
+    if (!childrenChanged && !positionChanged) {
+      return node;
+    }
+
+    return {
+      ...node,
+      position: nextPosition ?? node.position,
+      children: nextChildren,
+      updatedAt: positionChanged ? new Date() : node.updatedAt,
+    };
+  };
+
+  return visit(root);
 }
 
 export function normalizeBreadcrumbIds(

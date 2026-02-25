@@ -1,39 +1,42 @@
 "use client";
 
-import { 
-  Building2, 
-  Users, 
-  User, 
-  GitBranch, 
-  Bot, 
-  Zap,
+import type { ReactNode } from "react";
+import {
+  Bot,
+  Building2,
   ChevronRight,
   UserCircle,
-  Workflow,
   UserCog,
+  Users,
   UsersRound,
-  Wrench
+  WandSparkles,
+  Wrench,
+  Zap,
 } from "lucide-react";
-import type { WhiteboardNode, NodeType, WorkflowType } from "@/types";
-import { useWhiteboard } from "@/contexts/WhiteboardContext";
+import type { NodeType, WhiteboardNode, WorkflowType } from "@/types";
 import { cn } from "@/lib/utils";
+import { nodeTypeLabels } from "@/lib/hierarchy";
 
 interface NodeCardProps {
   node: WhiteboardNode;
-  onSelect?: (node: WhiteboardNode) => void;
+  isSelected?: boolean;
+  layerColor?: string;
 }
 
-const nodeIcons: Record<NodeType, React.ReactNode> = {
+const nodeIcons: Record<NodeType, ReactNode> = {
   organisation: <Building2 className="w-5 h-5" />,
   department: <Building2 className="w-5 h-5" />,
   team: <Users className="w-5 h-5" />,
+  agentSwarm: <WandSparkles className="w-5 h-5" />,
   teamLead: <UserCog className="w-5 h-5" />,
   teamMember: <UsersRound className="w-5 h-5" />,
-  role: <User className="w-5 h-5" />,
+  agentLead: <UserCog className="w-5 h-5" />,
+  agentMember: <UsersRound className="w-5 h-5" />,
+  role: <UserCog className="w-5 h-5" />,
   subRole: <UserCircle className="w-5 h-5" />,
   tool: <Wrench className="w-5 h-5" />,
-  workflow: <Workflow className="w-5 h-5" />,
-  process: <GitBranch className="w-5 h-5" />,
+  workflow: <WandSparkles className="w-5 h-5" />,
+  process: <Users className="w-5 h-5" />,
   agent: <Bot className="w-5 h-5" />,
   automation: <Zap className="w-5 h-5" />,
 };
@@ -43,59 +46,57 @@ const workflowColors: Record<WorkflowType, string> = {
   linear: "bg-white/10 border-white/20",
 };
 
-export function NodeCard({ node }: NodeCardProps) {
-  const { selectNode, drillDown, selectedNode } = useWhiteboard();
-  const isSelected = selectedNode?.id === node.id;
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+
+  if (value.length !== 6) {
+    return `rgba(255,250,220,${alpha})`;
+  }
+
+  const intValue = Number.parseInt(value, 16);
+  const r = (intValue >> 16) & 255;
+  const g = (intValue >> 8) & 255;
+  const b = intValue & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function NodeCard({ node, isSelected = false, layerColor = "#fffadc" }: NodeCardProps) {
   const hasChildren = node.children.length > 0;
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    selectNode(node);
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (hasChildren) {
-      drillDown(node);
-    }
-  };
-
-  // Format node type for display
-  const nodeTypeLabel = node.type.charAt(0).toUpperCase() + node.type.slice(1);
+  const nodeTypeLabel = nodeTypeLabels[node.type] ?? node.type;
 
   return (
     <div
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       className={cn(
         "relative flex items-start gap-3 p-4 rounded-[16.168px] border cursor-pointer transition-all duration-300 min-w-[240px] group",
-        "bg-white/10 backdrop-blur-md",
-        "border-white/20",
+        "backdrop-blur-md",
         "shadow-[0_8px_30px_rgba(0,0,0,0.25)]",
-        "hover:bg-white/15 hover:-translate-y-0.5",
-        isSelected && "ring-2 ring-cardzzz-cream/50 ring-offset-2 ring-offset-transparent bg-black/20",
+        "hover:-translate-y-0.5",
+        isSelected && "ring-2 ring-cardzzz-cream/50 ring-offset-2 ring-offset-transparent",
         node.workflowType && workflowColors[node.workflowType]
       )}
+      style={{
+        borderColor: hexToRgba(layerColor, 0.52),
+        backgroundColor: isSelected ? hexToRgba(layerColor, 0.16) : "rgb(255 255 255 / 0.1)",
+      }}
     >
-      {/* Immediate hover label - shows type instantly on hover */}
       <div className="absolute -top-8 left-0 px-2 py-1 bg-black/80 text-cardzzz-cream text-xs rounded-[10px] opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10 font-satoshi">
         {nodeTypeLabel}
       </div>
-      <div className={cn(
-        "flex-shrink-0 p-2 rounded-[12px]",
-        node.type === "organisation" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "department" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "team" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "teamLead" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "teamMember" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "role" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "subRole" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "tool" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "workflow" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "process" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "agent" && "bg-cardzzz-cream/20 text-cardzzz-cream",
-        node.type === "automation" && "bg-cardzzz-cream/20 text-cardzzz-cream"
-      )}>
+
+      <div
+        className="flex-shrink-0 p-2 rounded-[12px]"
+        style={{
+          backgroundColor: hexToRgba(layerColor, 0.24),
+          color: layerColor,
+        }}
+      >
         {nodeIcons[node.type]}
       </div>
 
@@ -105,18 +106,20 @@ export function NodeCard({ node }: NodeCardProps) {
             {node.name}
           </h3>
           {node.workflowType && (
-            <span className={cn(
-              "text-xs px-2 py-0.5 rounded-full font-satoshi border border-white/20",
-              node.workflowType === "agentic" && "bg-cardzzz-accent/30 text-cardzzz-cream",
-              node.workflowType === "linear" && "bg-black/20 text-cardzzz-cream"
-            )}>
+            <span
+              className={cn(
+                "text-xs px-2 py-0.5 rounded-full font-satoshi border border-white/20",
+                node.workflowType === "agentic" && "bg-cardzzz-accent/30 text-cardzzz-cream",
+                node.workflowType === "linear" && "bg-black/20 text-cardzzz-cream"
+              )}
+            >
               {node.workflowType}
             </span>
           )}
         </div>
-        
+
         {node.description && (
-          <p className="text-sm text-cardzzz-cream/85 mt-1 line-clamp-2 font-satoshi">
+          <p className="text-sm text-cardzzz-cream/90 mt-1 line-clamp-2 font-satoshi">
             {node.description}
           </p>
         )}
@@ -128,16 +131,16 @@ export function NodeCard({ node }: NodeCardProps) {
               {node.departmentHead}
             </span>
           )}
-          {hasChildren && (
+          {(hasChildren || Boolean(node.automationBoardId)) && (
             <span className="flex items-center gap-1 text-xs text-cardzzz-cream/80 font-satoshi">
               <Users className="w-3 h-3" />
-              {node.children.length} {node.children.length === 1 ? "item" : "items"}
+              {hasChildren ? `${node.children.length} ${node.children.length === 1 ? "item" : "items"}` : "has flow"}
             </span>
           )}
         </div>
       </div>
 
-      {hasChildren && (
+      {(hasChildren || node.type === "automation") && (
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <ChevronRight className="w-5 h-5 text-cardzzz-cream/60" />
         </div>

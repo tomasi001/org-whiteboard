@@ -7,6 +7,8 @@ import {
   RotateCcw,
   Focus,
   Minimize2,
+  Library,
+  ArrowLeft,
 } from "lucide-react";
 import { WhiteboardProvider, useWhiteboard } from "@/contexts/WhiteboardContext";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -17,17 +19,25 @@ import { ChatWidget } from "./ChatWidget";
 import { Button } from "@/components/ui/Button";
 
 function WhiteboardContent() {
-  const { currentWhiteboard, selectedNode, resetWhiteboard } = useWhiteboard();
+  const {
+    currentWhiteboard,
+    selectedNode,
+    resetWhiteboard,
+    setCurrentWhiteboard,
+    returnToParentBoard,
+  } = useWhiteboard();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [isCanvasOnlyMode, setIsCanvasOnlyMode] = useState(false);
 
   const handleReset = () => {
     if (
       confirm(
-        "Are you sure you want to start over? This will clear the current whiteboard."
+        "Are you sure you want to start over? This will remove the current whiteboard from your dashboard history."
       )
     ) {
       resetWhiteboard();
+      setIsCanvasOnlyMode(false);
+      setIsPanelCollapsed(false);
     }
   };
 
@@ -35,9 +45,8 @@ function WhiteboardContent() {
     return <CreateWhiteboardDialog />;
   }
 
-  const isPanelVisible = isCanvasOnlyMode
-    ? Boolean(selectedNode)
-    : !isPanelCollapsed;
+  const isPanelVisible = isCanvasOnlyMode ? Boolean(selectedNode) : !isPanelCollapsed;
+  const isAutomationBoard = currentWhiteboard.kind === "automation";
 
   return (
     <div className="h-screen w-screen overflow-hidden relative">
@@ -50,11 +59,31 @@ function WhiteboardContent() {
         <>
           <header className="fixed top-0 left-0 right-0 h-14 bg-black/20 backdrop-blur-md border-b border-white/20 flex items-center px-4 z-50">
             <h1 className="font-roundo lowercase tracking-wide text-cardzzz-cream">
-              org whiteboard
+              {isAutomationBoard ? "automation whiteboard" : "org whiteboard"}
             </h1>
             <span className="mx-2 text-cardzzz-cream/50">/</span>
             <span className="text-cardzzz-cream/85 font-satoshi">{currentWhiteboard.name}</span>
             <div className="ml-auto flex items-center gap-2">
+              {isAutomationBoard && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={returnToParentBoard}
+                  title="Return to organisation board"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  Parent Board
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentWhiteboard(null)}
+                title="Open dashboard"
+              >
+                <Library className="w-4 h-4 mr-1" />
+                Boards
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -103,7 +132,7 @@ function WhiteboardContent() {
         </div>
       )}
 
-      {!isCanvasOnlyMode && <ChatWidget />}
+      {!isCanvasOnlyMode && !isAutomationBoard && <ChatWidget />}
 
       {isCanvasOnlyMode && (
         <div className="fixed top-4 left-4 z-50">

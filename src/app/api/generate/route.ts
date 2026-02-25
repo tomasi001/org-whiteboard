@@ -359,10 +359,10 @@ function friendlyMissingFields(missingFields: string[]): string[] {
   const map: Record<string, string> = {
     "organisation name": "company name",
     "organisation description": "what your company does",
-    "at least one department or core workflow": "at least one department or core workflow",
+    "at least one department or agent layer": "at least one department or agent layer",
     "at least one team under a department": "at least one team",
     "key owners or team members": "key owners or team members",
-    "at least one workflow": "at least one workflow",
+    "at least one agent or automation flow": "at least one agent or automation flow",
   };
 
   return [...new Set(missingFields.map((item) => map[item] ?? item))];
@@ -389,7 +389,7 @@ function buildSuggestions(state: OrgIntakeState): string[] {
   }
 
   if (!hasWorkflow) {
-    suggestions.push("Define 1-2 critical workflows to anchor automation design");
+    suggestions.push("Define 1-2 critical agent flows to anchor automation design");
   }
 
   if (teams.length > 0 && !teams.some((team) => (team.teamMembers?.length ?? 0) > 0 || team.teamLead)) {

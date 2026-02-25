@@ -63,7 +63,7 @@ export function ChatWidget() {
     {
       role: "assistant",
       content:
-        'I can apply whiteboard edits. Try: "add a Marketing department", "add a Frontend team", "add tool Figma", or "remove \\"Sales\\"".',
+        'I can apply whiteboard edits. Try: "add a Marketing department", "add a Frontend team", "add agent swarm RevOps", "add automation Lead Scoring", or "remove \\"Sales\\"".',
     },
   ]);
   const [input, setInput] = useState("");

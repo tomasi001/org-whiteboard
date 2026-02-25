@@ -4,8 +4,11 @@ export type NodeType =
   | 'organisation'
   | 'department'
   | 'team'
+  | 'agentSwarm'
   | 'teamLead'
   | 'teamMember'
+  | 'agentLead'
+  | 'agentMember'
   | 'role'
   | 'subRole'
   | 'tool'
@@ -13,6 +16,10 @@ export type NodeType =
   | 'process'
   | 'agent'
   | 'automation';
+
+export type WhiteboardKind = 'organisation' | 'automation';
+export type LayoutMode = 'auto' | 'freeform';
+export type LayerColorConfig = Partial<Record<NodeType, string>>;
 
 export type WorkflowType = 'agentic' | 'linear';
 
@@ -24,6 +31,7 @@ export interface WhiteboardNode {
   parentId?: string;
   children: WhiteboardNode[];
   position: { x: number; y: number };
+  automationBoardId?: string;
   metadata?: Record<string, unknown>;
   departmentHead?: string;
   workflowType?: WorkflowType;
@@ -37,6 +45,11 @@ export interface Whiteboard {
   name: string;
   description?: string;
   rootNode: WhiteboardNode;
+  kind?: WhiteboardKind;
+  parentBoardId?: string;
+  parentAutomationNodeId?: string;
+  layoutMode?: LayoutMode;
+  layerColors?: LayerColorConfig;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
@@ -51,6 +64,7 @@ export interface Connection {
 }
 
 export interface WhiteboardState {
+  whiteboards: Whiteboard[];
   currentWhiteboard: Whiteboard | null;
   selectedNode: WhiteboardNode | null;
   zoom: number;
@@ -76,6 +90,7 @@ export interface UpdateNodeInput {
   name?: string;
   description?: string;
   position?: { x: number; y: number };
+  automationBoardId?: string;
   documentationUrl?: string;
   workflowType?: WorkflowType;
   departmentHead?: string;
