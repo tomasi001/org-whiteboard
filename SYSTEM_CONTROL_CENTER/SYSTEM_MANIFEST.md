@@ -24,6 +24,7 @@ This manifest is the canonical technical audit of the active Org Whiteboard runt
 - Merge behavior:
   - state is normalized and merged server-side
   - fallback heuristics run if model output is missing/invalid
+  - PDF parsing dependency is loaded lazily at request time to keep server build stable
 
 ### Flow 3: Quick Generate
 - UI: `src/components/features/GenerateOrgDialog.tsx`

@@ -39,6 +39,9 @@ Hard limits:
   - DOCX (`mammoth`)
   - text-like formats (`utf8`)
 
+Implementation constraint:
+- PDF parser is loaded lazily during request handling to avoid build-time module evaluation failures.
+
 ## UI and State Constraints
 Source:
 - `src/contexts/WhiteboardContext.tsx`
