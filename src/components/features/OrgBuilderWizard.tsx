@@ -62,12 +62,20 @@ interface ConversationResponse {
 
 const INITIAL_ASSISTANT_MESSAGE = `Welcome to the Org Builder.
 
-You can start however you want:
-- chat naturally
-- paste structured JSON
-- upload company documents (PDF, DOCX, TXT, Markdown, CSV, JSON)
+Drop in anything you have and we'll shape it together.
 
-I will extract what I can, maintain a canonical structure, and only ask for what is truly missing.`;
+You can:
+- describe your business in your own words
+- paste a full org JSON
+- upload docs (PDF, DOCX, TXT, Markdown, CSV, JSON)
+
+Start with a brain dump and I’ll turn it into a clean org map.`;
+
+const STARTER_PROMPTS = [
+  "Here is my full company overview. Build a practical org structure from it.",
+  "Suggest a strong department setup for a service business with delivery + sales.",
+  "I want a lean starter org. Keep it small but scalable.",
+];
 
 const FILE_ACCEPT =
   ".pdf,.docx,.txt,.md,.markdown,.csv,.json,.yaml,.yml,.xml,.html,.rtf,.log";
@@ -199,7 +207,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
         {
           role: "assistant",
           content:
-            "I could not process that input. Please retry, or provide your org details in another format.",
+            "I hit a processing issue on that message. Please send it again or upload a doc and I’ll keep going.",
           previewTemplate: null,
         },
       ]);
@@ -229,8 +237,8 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
 
       const normalizedJson = JSON.stringify(validated.data, null, 2);
       await runConversationTurn(
-        "Inserted structured JSON baseline.",
-        `Use this structured JSON as canonical baseline data. Merge it into state and ask only for missing fields.\n\n${normalizedJson}`,
+        "Pasted structured org JSON.",
+        `Use this structured JSON as the primary baseline for the org map. Merge it with existing details and ask only for unanswered essentials.\n\n${normalizedJson}`,
         "json"
       );
 
@@ -288,7 +296,7 @@ export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
             },
           ]);
 
-          const modelPrompt = `Ingest this company document and update canonical org state.
+          const modelPrompt = `Ingest this company document and update the current org draft.
 Document name: ${parsed.fileName}
 Document type: ${parsed.fileType || "unknown"}
 
@@ -296,7 +304,7 @@ Extracted text:
 ${parsed.extractedText}`;
 
           await runConversationTurn(
-            `Uploaded document: ${parsed.fileName}`,
+            `Uploaded file: ${parsed.fileName}`,
             modelPrompt,
             "document"
           );
@@ -324,16 +332,16 @@ ${parsed.extractedText}`;
       ...previous,
       {
         role: "assistant",
-        content: "Generating your organisational structure from the current canonical state...",
+        content: "Building your org structure now...",
       },
     ]);
 
     try {
-      const prompt = `Generate a complete organisation structure from this canonical intake state JSON.
+      const prompt = `Generate a complete organisation structure from this intake data.
 
 ${JSON.stringify(intakeStateRef.current, null, 2)}
 
-Preserve all confirmed details and fill only practical gaps.`;
+Preserve confirmed details and fill practical gaps.`;
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -362,7 +370,7 @@ Preserve all confirmed details and fill only practical gaps.`;
         {
           role: "assistant",
           content:
-            "Generation failed. Please provide any missing fields shown above and try again.",
+            "Couldn’t generate that yet. Add a bit more detail and run it again.",
         },
       ]);
     } finally {
@@ -390,7 +398,7 @@ Preserve all confirmed details and fill only practical gaps.`;
                   : "border-white/25 bg-black/20 text-cardzzz-cream/85"
               }`}
             >
-              {readyToGenerate ? "Ready to generate" : "Collecting details"}
+              {readyToGenerate ? "Ready" : "Shaping your map"}
             </span>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -401,11 +409,11 @@ Preserve all confirmed details and fill only practical gaps.`;
         <div className="border-b border-white/20 px-4 py-2 bg-black/20 backdrop-blur-md">
           <div className="grid gap-2 md:grid-cols-2 text-xs font-satoshi text-cardzzz-cream/90">
             <div>
-              <span className="text-cardzzz-cream">Captured:</span>{" "}
+              <span className="text-cardzzz-cream">Live snapshot:</span>{" "}
               {`${orgSummary.departments.length} departments, ${orgSummary.teams.length} teams, ${orgSummary.roles.length} people, ${orgSummary.workflows.length} workflows`}
             </div>
             <div>
-              <span className="text-cardzzz-cream">Org:</span>{" "}
+              <span className="text-cardzzz-cream">Company:</span>{" "}
               {orgSummary.name || "Not named yet"}
             </div>
           </div>
@@ -416,13 +424,13 @@ Preserve all confirmed details and fill only practical gaps.`;
             {missingFields.length > 0 && (
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
-                <span>Missing fields: {missingFields.join(", ")}</span>
+                <span>Still need: {missingFields.join(", ")}</span>
               </div>
             )}
             {suggestions.length > 0 && (
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 mt-0.5" />
-                <span>Suggestions: {suggestions.join(" | ")}</span>
+                <span>Good upgrades: {suggestions.join(" | ")}</span>
               </div>
             )}
           </div>
@@ -482,7 +490,7 @@ Preserve all confirmed details and fill only practical gaps.`;
               disabled={busy}
             >
               <FileUp className="w-4 h-4 mr-2" />
-              Upload Docs
+              Drop Files
             </Button>
             <Button
               variant="secondary"
@@ -491,7 +499,7 @@ Preserve all confirmed details and fill only practical gaps.`;
               disabled={busy}
             >
               <Braces className="w-4 h-4 mr-2" />
-              Insert Structured JSON
+              Paste JSON
             </Button>
             <input
               ref={fileInputRef}
@@ -524,7 +532,7 @@ Preserve all confirmed details and fill only practical gaps.`;
               <textarea
                 value={jsonDraft}
                 onChange={(event) => setJsonDraft(event.target.value)}
-                placeholder="Paste org template JSON..."
+                placeholder="Paste your org JSON here..."
                 rows={8}
                 className="w-full rounded-[16.168px] border border-white/20 bg-black/20 px-3 py-2 text-sm font-mono text-cardzzz-cream placeholder:text-cardzzz-cream/60 caret-cardzzz-cream focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
                 disabled={busy}
@@ -542,11 +550,25 @@ Preserve all confirmed details and fill only practical gaps.`;
                   Cancel
                 </Button>
                 <Button size="sm" onClick={handleJsonImport} disabled={busy || !jsonDraft.trim()}>
-                  Apply JSON
+                  Use This JSON
                 </Button>
               </div>
             </div>
           )}
+
+          <div className="flex flex-wrap gap-2">
+            {STARTER_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => setInput(prompt)}
+                disabled={busy}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-satoshi text-cardzzz-cream/90 transition hover:bg-white/20 disabled:opacity-60"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
 
           <div className="flex gap-2">
             <div className="flex-1 flex gap-2">
@@ -560,7 +582,7 @@ Preserve all confirmed details and fill only practical gaps.`;
                     void handleSend();
                   }
                 }}
-                placeholder="Describe your organisation, or ask for suggestions..."
+                placeholder="Tell me about your business in plain language..."
                 className="flex-1 h-[54px] px-4 py-2 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream font-satoshi focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70 focus:border-cardzzz-cream"
                 disabled={busy}
               />
