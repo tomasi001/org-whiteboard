@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
+import { createRequire } from "node:module";
 
 export const runtime = "nodejs";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 50_000;
+type PdfParseInstance = {
+  getText: () => Promise<{ text?: string | null }>;
+  destroy: () => Promise<void>;
+};
+
+type PdfParseConstructor = new (options: { data: Buffer }) => PdfParseInstance;
+const require = createRequire(import.meta.url);
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const pdfModule = require("pdf-parse") as {
+    PDFParse?: PdfParseConstructor;
+  };
+  const PDFParse = pdfModule.PDFParse;
+
+  if (!PDFParse) {
+    throw new Error("PDF parser module did not expose a PDFParse constructor.");
+  }
+
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const data = await parser.getText();
+    return data.text ?? "";
+  } finally {
+    await parser.destroy();
+  }
+}
 
 function normaliseText(value: string): string {
   return value
@@ -28,13 +54,8 @@ async function extractFileText(file: File): Promise<{ text: string; parser: stri
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (mimeType.includes("pdf") || fileName.endsWith(".pdf")) {
-    const parser = new PDFParse({ data: buffer });
-    try {
-      const data = await parser.getText();
-      return { text: data.text ?? "", parser: "pdf-parse" };
-    } finally {
-      await parser.destroy();
-    }
+    const text = await extractPdfText(buffer);
+    return { text, parser: "pdf-parse" };
   }
 
   if (
