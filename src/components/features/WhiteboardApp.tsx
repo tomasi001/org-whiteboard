@@ -37,7 +37,7 @@ function WhiteboardContent() {
 
   const isPanelVisible = isCanvasOnlyMode
     ? Boolean(selectedNode)
-    : !isPanelCollapsed || Boolean(selectedNode);
+    : !isPanelCollapsed;
 
   return (
     <div className="h-screen w-screen overflow-hidden relative">

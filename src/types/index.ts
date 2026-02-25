@@ -78,6 +78,7 @@ export interface UpdateNodeInput {
   position?: { x: number; y: number };
   documentationUrl?: string;
   workflowType?: WorkflowType;
+  departmentHead?: string;
 }
 
 export type {

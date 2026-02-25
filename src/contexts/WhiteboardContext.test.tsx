@@ -39,6 +39,11 @@ describe("WhiteboardContext", () => {
         type: "department",
         name: "Engineering",
       });
+      result.current.createNode({
+        parentId: rootId,
+        type: "department",
+        name: "Operations",
+      });
     });
 
     const department = findByName(
@@ -61,6 +66,25 @@ describe("WhiteboardContext", () => {
     expect(
       findByName(result.current.currentWhiteboard!.rootNode, "Engineering & Platform")
     ).not.toBeNull();
+
+    const operations = findByName(result.current.currentWhiteboard!.rootNode, "Operations");
+    act(() => {
+      result.current.createNode({
+        parentId: department!.id,
+        type: "team",
+        name: "Frontend",
+      });
+    });
+
+    const frontendTeam = findByName(result.current.currentWhiteboard!.rootNode, "Frontend");
+    expect(frontendTeam?.parentId).toBe(department!.id);
+
+    act(() => {
+      result.current.moveNode(frontendTeam!.id, operations!.id);
+    });
+
+    const movedFrontend = findByName(result.current.currentWhiteboard!.rootNode, "Frontend");
+    expect(movedFrontend?.parentId).toBe(operations!.id);
 
     act(() => {
       result.current.deleteNode(department!.id);

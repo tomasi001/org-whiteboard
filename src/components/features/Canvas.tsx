@@ -87,12 +87,20 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
   } = useWhiteboard();
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const setZoomRef = useRef(setZoom);
+  const setPanRef = useRef(setPan);
+  const autoFitKeyRef = useRef<string>("");
   const [dragStart, setDragStart] = useState<{
     mouseX: number;
     mouseY: number;
     panX: number;
     panY: number;
   } | null>(null);
+
+  useEffect(() => {
+    setZoomRef.current = setZoom;
+    setPanRef.current = setPan;
+  }, [setPan, setZoom]);
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
@@ -183,15 +191,23 @@ export function Canvas({ isCanvasOnlyMode = false, onToggleCanvasOnlyMode }: Can
     const panX = canvasWidth / 2 - centerX * newZoom;
     const panY = canvasHeight / 2 - centerY * newZoom;
 
-    setZoom(newZoom);
-    setPan({ x: panX, y: panY });
-  }, [bounds, currentWhiteboard, setPan, setZoom]);
+    setZoomRef.current(newZoom);
+    setPanRef.current({ x: panX, y: panY });
+  }, [bounds, currentWhiteboard]);
+
+  const currentNodeId = currentNode?.id;
+  const currentWhiteboardId = currentWhiteboard?.id;
 
   useEffect(() => {
-    if (!currentNode) return;
+    if (!currentNodeId || !currentWhiteboardId) return;
+
+    const nextAutoFitKey = `${currentWhiteboardId}:${currentNodeId}`;
+    if (autoFitKeyRef.current === nextAutoFitKey) return;
+
+    autoFitKeyRef.current = nextAutoFitKey;
     const timer = window.setTimeout(() => handleFitToView(), 60);
     return () => window.clearTimeout(timer);
-  }, [currentNode, handleFitToView]);
+  }, [currentNodeId, currentWhiteboardId, handleFitToView]);
 
   const handleZoomIn = () => setZoom(Math.min(zoom + 0.06, 3));
   const handleZoomOut = () => setZoom(Math.max(zoom - 0.06, 0.1));

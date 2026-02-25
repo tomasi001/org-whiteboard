@@ -5,6 +5,7 @@ import {
   deleteNodeFromTree,
   findNodeById,
   normalizeBreadcrumbIds,
+  reparentNodeInTree,
   updateNodeInTree,
 } from "@/lib/whiteboardTree";
 
@@ -31,6 +32,7 @@ function makeTree(): WhiteboardNode {
     node("dept-eng", "department", "Engineering", [
       node("team-fe", "team", "Frontend"),
     ]),
+    node("dept-ops", "department", "Operations"),
   ]);
 }
 
@@ -53,11 +55,13 @@ describe("whiteboardTree", () => {
       id: "team-fe",
       name: "Frontend Platform",
       description: "Owns web platform",
+      departmentHead: "Sam",
     });
 
     const team = findNodeById(next, "team-fe");
     expect(team?.name).toBe("Frontend Platform");
     expect(team?.description).toBe("Owns web platform");
+    expect(team?.departmentHead).toBe("Sam");
   });
 
   it("deletes a node recursively", () => {
@@ -72,5 +76,11 @@ describe("whiteboardTree", () => {
     const breadcrumbs = normalizeBreadcrumbIds(root, ["missing-id", "team-fe"]);
     expect(breadcrumbs).toEqual(["org"]);
   });
-});
 
+  it("moves a node to another valid parent", () => {
+    const root = makeTree();
+    const moved = reparentNodeInTree(root, "team-fe", "dept-ops");
+    const team = findNodeById(moved, "team-fe");
+    expect(team?.parentId).toBe("dept-ops");
+  });
+});

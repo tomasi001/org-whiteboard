@@ -22,6 +22,7 @@ import {
   deleteNodeFromTree,
   findNodeById,
   normalizeBreadcrumbIds,
+  reparentNodeInTree,
   updateNodeInTree,
 } from "@/lib/whiteboardTree";
 
@@ -37,6 +38,7 @@ interface WhiteboardContextType extends WhiteboardState {
   navigateToBreadcrumb: (index: number) => void;
   createNode: (input: CreateNodeInput) => void;
   updateNode: (input: UpdateNodeInput) => void;
+  moveNode: (id: string, parentId: string) => void;
   deleteNode: (id: string) => void;
   setZoom: (zoom: number) => void;
   setPan: (pan: { x: number; y: number }) => void;
@@ -66,6 +68,7 @@ type Action =
   | { type: "NAVIGATE_BREADCRUMB"; payload: { index: number } }
   | { type: "CREATE_NODE"; payload: { input: CreateNodeInput } }
   | { type: "UPDATE_NODE"; payload: { input: UpdateNodeInput } }
+  | { type: "MOVE_NODE"; payload: { id: string; parentId: string } }
   | { type: "DELETE_NODE"; payload: { id: string } }
   | { type: "SET_ZOOM"; payload: { zoom: number } }
   | { type: "SET_PAN"; payload: { pan: { x: number; y: number } } };
@@ -308,6 +311,27 @@ function reducer(state: InternalState, action: Action): InternalState {
       };
     }
 
+    case "MOVE_NODE": {
+      if (!state.document) return state;
+      if (state.document.rootNode.id === action.payload.id) return state;
+
+      const rootNode = reparentNodeInTree(
+        state.document.rootNode,
+        action.payload.id,
+        action.payload.parentId
+      );
+      const document = {
+        ...state.document,
+        rootNode,
+        updatedAt: new Date(),
+      };
+
+      return {
+        document,
+        ui: normalizeUiForDocument(state.ui, document),
+      };
+    }
+
     case "DELETE_NODE": {
       if (!state.document) return state;
       if (state.document.rootNode.id === action.payload.id) return state;
@@ -402,6 +426,8 @@ export function WhiteboardProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "NAVIGATE_BREADCRUMB", payload: { index } }),
       createNode: (input) => dispatch({ type: "CREATE_NODE", payload: { input } }),
       updateNode: (input) => dispatch({ type: "UPDATE_NODE", payload: { input } }),
+      moveNode: (id, parentId) =>
+        dispatch({ type: "MOVE_NODE", payload: { id, parentId } }),
       deleteNode: (id) => dispatch({ type: "DELETE_NODE", payload: { id } }),
       setZoom: (zoom) => dispatch({ type: "SET_ZOOM", payload: { zoom } }),
       setPan: (pan) => dispatch({ type: "SET_PAN", payload: { pan } }),

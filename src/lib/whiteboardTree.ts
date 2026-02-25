@@ -1,5 +1,6 @@
 import type { CreateNodeInput, UpdateNodeInput, WhiteboardNode } from "@/types";
 import { generateId } from "@/lib/utils";
+import { hierarchyRules } from "@/lib/hierarchy";
 
 function createNode(input: CreateNodeInput): WhiteboardNode {
   const now = new Date();
@@ -71,6 +72,7 @@ export function updateNodeInTree(
         position: input.position ?? node.position,
         documentationUrl: input.documentationUrl ?? node.documentationUrl,
         workflowType: input.workflowType ?? node.workflowType,
+        departmentHead: input.departmentHead ?? node.departmentHead,
         updatedAt: new Date(),
       };
     }
@@ -82,6 +84,91 @@ export function updateNodeInTree(
   };
 
   return visit(root);
+}
+
+function hasDescendant(node: WhiteboardNode, targetId: string): boolean {
+  if (node.id === targetId) return true;
+  return node.children.some((child) => hasDescendant(child, targetId));
+}
+
+function removeNodeById(
+  root: WhiteboardNode,
+  targetId: string
+): { nextRoot: WhiteboardNode; removedNode: WhiteboardNode | null } {
+  let removedNode: WhiteboardNode | null = null;
+
+  const visit = (node: WhiteboardNode): WhiteboardNode => {
+    const nextChildren: WhiteboardNode[] = [];
+    let removedDirectChild = false;
+
+    for (const child of node.children) {
+      if (child.id === targetId) {
+        removedNode = child;
+        removedDirectChild = true;
+        continue;
+      }
+      nextChildren.push(visit(child));
+    }
+
+    return {
+      ...node,
+      children: nextChildren,
+      updatedAt: removedDirectChild ? new Date() : node.updatedAt,
+    };
+  };
+
+  return {
+    nextRoot: visit(root),
+    removedNode,
+  };
+}
+
+function insertExistingNode(
+  root: WhiteboardNode,
+  parentId: string,
+  nodeToInsert: WhiteboardNode
+): WhiteboardNode {
+  const visit = (node: WhiteboardNode): WhiteboardNode => {
+    if (node.id === parentId) {
+      return {
+        ...node,
+        children: [...node.children, { ...nodeToInsert, parentId }],
+        updatedAt: new Date(),
+      };
+    }
+
+    return {
+      ...node,
+      children: node.children.map(visit),
+    };
+  };
+
+  return visit(root);
+}
+
+export function reparentNodeInTree(
+  root: WhiteboardNode,
+  nodeId: string,
+  newParentId: string
+): WhiteboardNode {
+  if (root.id === nodeId) return root;
+
+  const nodeToMove = findNodeById(root, nodeId);
+  const newParent = findNodeById(root, newParentId);
+
+  if (!nodeToMove || !newParent) return root;
+  if (hasDescendant(nodeToMove, newParentId)) return root;
+  if (!hierarchyRules[newParent.type]?.includes(nodeToMove.type)) return root;
+  if (nodeToMove.parentId === newParentId) return root;
+
+  const { nextRoot, removedNode } = removeNodeById(root, nodeId);
+  if (!removedNode) return root;
+
+  return insertExistingNode(nextRoot, newParentId, {
+    ...removedNode,
+    parentId: newParentId,
+    updatedAt: new Date(),
+  });
 }
 
 export function deleteNodeFromTree(
@@ -123,4 +210,3 @@ export function normalizeBreadcrumbIds(
 
   return nextIds;
 }
-
