@@ -91,6 +91,53 @@ export const conversationResponseSchema = z.object({
   readyToGenerate: z.boolean().optional(),
 });
 
+export const orgBuilderOnboardingSchema = z.object({
+  companyName: nonEmptyString.max(200),
+  companyDescription: nonEmptyString.max(10_000),
+});
+
+export const orgBuilderRequestSchema = z
+  .object({
+    mode: z.enum(["initial", "revision"]),
+    onboarding: orgBuilderOnboardingSchema.optional(),
+    currentDraft: orgTemplateSchema.nullable().optional(),
+    feedback: z.string().trim().max(10_000).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.mode === "initial" && !value.onboarding) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["onboarding"],
+        message: "onboarding is required for initial mode.",
+      });
+    }
+
+    if (value.mode === "revision") {
+      if (!value.currentDraft) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["currentDraft"],
+          message: "currentDraft is required for revision mode.",
+        });
+      }
+
+      if (!value.feedback || value.feedback.trim().length === 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["feedback"],
+          message: "feedback is required for revision mode.",
+        });
+      }
+    }
+  });
+
+export const orgBuilderResponseSchema = z.object({
+  guidance: nonEmptyString,
+  updatedDraft: orgTemplateSchema,
+  questions: z.array(nonEmptyString).default([]),
+  isValidForProceed: z.boolean(),
+});
+
 export const generateRequestSchema = z.object({
   prompt: nonEmptyString.max(50_000),
   mode: z.enum(["generate", "conversation"]).optional(),
@@ -149,5 +196,7 @@ export const chatRequestSchema = z.object({
 
 export type OrgTemplateSchema = z.infer<typeof orgTemplateSchema>;
 export type ConversationResponse = z.infer<typeof conversationResponseSchema>;
+export type OrgBuilderRequest = z.infer<typeof orgBuilderRequestSchema>;
+export type OrgBuilderResponse = z.infer<typeof orgBuilderResponseSchema>;
 export type ChatAction = z.infer<typeof chatActionSchema>;
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

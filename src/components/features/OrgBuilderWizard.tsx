@@ -1,32 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, type ReactNode } from "react";
-import {
-  Sparkles,
-  Loader2,
-  X,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  FileUp,
-  Braces,
-  FileText,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, CheckCircle2, Loader2, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useWhiteboard } from "@/contexts/WhiteboardContext";
-import { MiniCanvasPreview } from "./MiniCanvasPreview";
 import { buildRootNodeFromTemplate, buildWhiteboardFromTemplate } from "@/lib/orgTemplate";
-import {
-  emptyIntakeState,
-  intakeStateToTemplate,
-  isReadyToGenerate,
-  mergeTemplates,
-  summarizeTemplate,
-} from "@/lib/orgIntake";
-import type { OrgDataSummary, OrgIntakeState } from "@/lib/orgIntake";
+import { summarizeTemplate } from "@/lib/orgIntake";
+import { MiniCanvasPreview } from "./MiniCanvasPreview";
 import type { OrgTemplate } from "@/types/orgTemplate";
-import { JsonNormalizationError, normalizeJsonInput } from "@/lib/jsonNormalization";
 
 interface OrgBuilderWizardProps {
   onClose: () => void;
@@ -38,356 +20,121 @@ interface Message {
   previewTemplate?: OrgTemplate | null;
 }
 
-interface UploadedDocument {
-  name: string;
-  parser: string;
-  truncated: boolean;
-}
-
-interface ParseFileResponse {
-  fileName: string;
-  fileType: string;
-  parser: string;
-  extractedText: string;
-  truncated: boolean;
-}
-
-interface ConversationResponse {
+interface OrgBuilderAgentResponse {
   guidance: string;
-  state: OrgIntakeState;
-  previewData: OrgTemplate | null;
-  missingFields: string[];
-  suggestions?: string[];
-  readyToGenerate?: boolean;
+  updatedDraft: OrgTemplate;
+  questions: string[];
+  isValidForProceed: boolean;
 }
 
-const INITIAL_ASSISTANT_MESSAGE = `Welcome to the Org Builder.
+type WizardStage = "onboarding" | "review";
 
-Drop in anything you have and we'll shape it together.
+const INITIAL_MESSAGE =
+  "Start with two details only: your company name and a short company description. I will propose an initial org structure with department heads and starter teams.";
 
-You can:
-- describe your business in your own words
-- paste a full org JSON
-- upload docs (PDF, DOCX, TXT, Markdown, CSV, JSON)
+function renderAssistantMessage(response: OrgBuilderAgentResponse): string {
+  const questionLine =
+    response.questions.length > 0
+      ? `\n\nNext check: ${response.questions[0]}`
+      : "\n\nReply with revisions, or proceed to whiteboard.";
 
-Start with a brain dump and I’ll turn it into a clean org map.`;
-
-const STARTER_PROMPTS = [
-  "Here is my full company overview. Build a practical org structure from it.",
-  "Suggest a strong department setup for a service business with delivery + sales.",
-  "I want a lean starter org. Keep it small but scalable.",
-];
-
-const FILE_ACCEPT =
-  ".pdf,.docx,.txt,.md,.markdown,.csv,.json,.yaml,.yml,.xml,.html,.rtf,.log";
-const MAX_UPLOAD_PROMPT_TEXT = 40_000;
-
-function clipPromptText(value: string, maxLength = MAX_UPLOAD_PROMPT_TEXT): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}\n[TRUNCATED]` : value;
-}
-
-function renderMarkdown(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <strong key={index} className="font-roundo lowercase text-cardzzz-cream">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return part;
-  });
-}
-
-function asHistory(messages: Message[]): Array<{ role: "assistant" | "user"; content: string }> {
-  return messages
-    .slice(-12)
-    .map((message) => ({ role: message.role, content: message.content }))
-    .filter((message) => message.content.trim().length > 0);
+  return `${response.guidance}${questionLine}`;
 }
 
 export function OrgBuilderWizard({ onClose }: OrgBuilderWizardProps) {
   const { setCurrentWhiteboard } = useWhiteboard();
-
+  const [stage, setStage] = useState<WizardStage>("onboarding");
+  const [companyName, setCompanyName] = useState("");
+  const [companyDescription, setCompanyDescription] = useState("");
+  const [feedbackInput, setFeedbackInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: INITIAL_ASSISTANT_MESSAGE,
-    },
+    { role: "assistant", content: INITIAL_MESSAGE },
   ]);
-  const [input, setInput] = useState("");
-  const [jsonDraft, setJsonDraft] = useState("");
-  const [showJsonInput, setShowJsonInput] = useState(false);
+  const [currentDraft, setCurrentDraft] = useState<OrgTemplate | null>(null);
+  const [isProceedReady, setIsProceedReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [intakeState, setIntakeState] = useState<OrgIntakeState>(emptyIntakeState);
-  const [orgSummary, setOrgSummary] = useState<OrgDataSummary>(() =>
-    summarizeTemplate(intakeStateToTemplate(emptyIntakeState))
-  );
-  const [missingFields, setMissingFields] = useState<string[]>([
-    "organisation name",
-    "organisation description",
-    "at least one department or agent layer",
-  ]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [readyToGenerate, setReadyToGenerate] = useState(false);
-  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
-
-  const messagesRef = useRef<Message[]>(messages);
-  const intakeStateRef = useRef<OrgIntakeState>(intakeState);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesRef.current = messages;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    intakeStateRef.current = intakeState;
-  }, [intakeState]);
+  const summary = summarizeTemplate(currentDraft);
+  const canProceed = Boolean(currentDraft) && isProceedReady && !isLoading;
 
-  const continueToWhiteboard = (template: OrgTemplate | null | undefined) => {
+  const continueToWhiteboard = (template: OrgTemplate | null) => {
     if (!template) return;
     setCurrentWhiteboard(buildWhiteboardFromTemplate(template));
     onClose();
   };
 
-  const callConversation = async (
-    userPrompt: string,
-    source: "message" | "json" | "document",
-    structuredJson?: string
-  ): Promise<ConversationResponse> => {
-    const response = await fetch("/api/generate", {
+  const callAgent = async (payload: {
+    mode: "initial" | "revision";
+    onboarding?: { companyName: string; companyDescription: string };
+    currentDraft?: OrgTemplate;
+    feedback?: string;
+  }): Promise<OrgBuilderAgentResponse> => {
+    const response = await fetch("/api/org-builder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: userPrompt,
-        mode: "conversation",
-        state: intakeStateRef.current,
-        source,
-        conversationHistory: asHistory(messagesRef.current),
-        structuredJson,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
+      const parsed = (await response.json().catch(() => null)) as
         | { error?: string }
         | null;
-      throw new Error(payload?.error ?? "Failed to get wizard response");
+      throw new Error(parsed?.error ?? "Failed to process org builder request.");
     }
 
-    return (await response.json()) as ConversationResponse;
+    return (await response.json()) as OrgBuilderAgentResponse;
   };
 
-  const applyConversationResult = (response: ConversationResponse): OrgTemplate | null => {
-    const preview = response.previewData ?? intakeStateToTemplate(response.state);
+  const submitOnboarding = async () => {
+    const name = companyName.trim();
+    const description = companyDescription.trim();
 
-    setIntakeState(response.state);
-    setOrgSummary(summarizeTemplate(preview));
-    setMissingFields(response.missingFields ?? []);
-    setSuggestions(response.suggestions ?? []);
-    setReadyToGenerate(response.readyToGenerate ?? isReadyToGenerate(response.state));
-
-    return preview;
-  };
-
-  const runConversationTurn = async (
-    userVisibleMessage: string,
-    modelPrompt: string,
-    source: "message" | "json" | "document",
-    structuredJson?: string
-  ) => {
-    setMessages((previous) => [...previous, { role: "user", content: userVisibleMessage }]);
-    setIsLoading(true);
-
-    try {
-      const response = await callConversation(modelPrompt, source, structuredJson);
-      const preview = applyConversationResult(response);
-
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "assistant",
-          content: response.guidance,
-          previewTemplate: preview,
-        },
-      ]);
-    } catch (error) {
-      console.error("Wizard error:", error);
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "assistant",
-          content:
-            "I hit a processing issue on that message. Please send it again or upload a doc and I’ll keep going.",
-          previewTemplate: null,
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
+    if (!name || !description) {
+      setError("Company name and description are required.");
+      return;
     }
-  };
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading || isUploading) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    await runConversationTurn(userMessage, userMessage, "message");
-  };
-
-  const handleJsonImport = async () => {
-    if (!jsonDraft.trim() || isLoading || isUploading) return;
-
-    try {
-      const { normalized } = normalizeJsonInput(jsonDraft);
-      await runConversationTurn(
-        "Pasted structured org JSON.",
-        "Use the structured JSON provided in structuredJson as baseline context, map it into a practical org structure, and continue with only unanswered essentials.",
-        "json",
-        normalized
-      );
-
-      setShowJsonInput(false);
-      setJsonDraft("");
-    } catch (error) {
-      const message =
-        error instanceof JsonNormalizationError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : "Invalid JSON payload.";
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "assistant",
-          content: `That JSON could not be parsed. Please check the syntax and try again. (${message})`,
-        },
-      ]);
-    }
-  };
-
-  const parseUploadedFile = async (file: File): Promise<ParseFileResponse> => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch("/api/intake/parse", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-      throw new Error(payload?.error ?? `Failed to parse ${file.name}`);
-    }
-
-    return (await response.json()) as ParseFileResponse;
-  };
-
-  const handleDocumentUpload: React.ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const files = Array.from(event.target.files ?? []);
-    event.currentTarget.value = "";
-
-    if (files.length === 0 || isLoading || isUploading) return;
-
-    setIsUploading(true);
-
-    try {
-      for (const file of files) {
-        try {
-          const parsed = await parseUploadedFile(file);
-          setUploadedDocuments((previous) => [
-            ...previous,
-            {
-              name: parsed.fileName,
-              parser: parsed.parser,
-              truncated: parsed.truncated,
-            },
-          ]);
-
-          const modelPrompt = `Ingest this company document and update the current org draft.
-Document name: ${parsed.fileName}
-Document type: ${parsed.fileType || "unknown"}
-
-Extracted text:
-${clipPromptText(parsed.extractedText)}`;
-
-          await runConversationTurn(
-            `Uploaded file: ${parsed.fileName}`,
-            modelPrompt,
-            "document"
-          );
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown upload error.";
-          setMessages((previous) => [
-            ...previous,
-            {
-              role: "assistant",
-              content: `Document upload failed for ${file.name}: ${message}`,
-            },
-          ]);
-        }
-      }
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (isLoading || isUploading) return;
-
-    const localTemplate = intakeStateToTemplate(intakeStateRef.current);
 
     setIsLoading(true);
+    setError(null);
     setMessages((previous) => [
       ...previous,
       {
-        role: "assistant",
-        content: "Building your org structure now...",
+        role: "user",
+        content: `Company: ${name}\nDescription: ${description}`,
       },
     ]);
 
     try {
-      const prompt =
-        "Generate a complete organisation structure from the provided intake data. Preserve confirmed details and fill practical gaps.";
-
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          mode: "generate",
-          state: intakeStateRef.current,
-        }),
+      const response = await callAgent({
+        mode: "initial",
+        onboarding: { companyName: name, companyDescription: description },
       });
 
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(payload?.error ?? "Failed to generate organisation");
-      }
-
-      const generated = (await response.json()) as OrgTemplate;
-      const merged = mergeTemplates(localTemplate, generated) ?? generated;
-      continueToWhiteboard(merged);
-    } catch (error) {
-      console.error("Generate error:", error);
-      if (localTemplate) {
-        continueToWhiteboard(localTemplate);
-        return;
-      }
+      setCurrentDraft(response.updatedDraft);
+      setIsProceedReady(response.isValidForProceed);
+      setStage("review");
+      setMessages((previous) => [
+        ...previous,
+        {
+          role: "assistant",
+          content: renderAssistantMessage(response),
+          previewTemplate: response.updatedDraft,
+        },
+      ]);
+    } catch (submitError) {
+      console.error("Org builder onboarding error:", submitError);
       setMessages((previous) => [
         ...previous,
         {
           role: "assistant",
           content:
-            "Couldn’t generate that yet. Add a bit more detail and run it again.",
+            "I could not create the first draft just now. Please retry with the same details.",
         },
       ]);
     } finally {
@@ -395,9 +142,47 @@ ${clipPromptText(parsed.extractedText)}`;
     }
   };
 
-  const busy = isLoading || isUploading;
-  const currentPreviewTemplate = intakeStateToTemplate(intakeState);
-  const canGenerate = readyToGenerate || Boolean(currentPreviewTemplate);
+  const submitRevision = async () => {
+    const feedback = feedbackInput.trim();
+    if (!feedback || !currentDraft) return;
+
+    setIsLoading(true);
+    setError(null);
+    setFeedbackInput("");
+    setMessages((previous) => [...previous, { role: "user", content: feedback }]);
+
+    try {
+      const response = await callAgent({
+        mode: "revision",
+        currentDraft,
+        feedback,
+      });
+
+      setCurrentDraft(response.updatedDraft);
+      setIsProceedReady(response.isValidForProceed);
+      setMessages((previous) => [
+        ...previous,
+        {
+          role: "assistant",
+          content: renderAssistantMessage(response),
+          previewTemplate: response.updatedDraft,
+        },
+      ]);
+    } catch (revisionError) {
+      console.error("Org builder revision error:", revisionError);
+      setMessages((previous) => [
+        ...previous,
+        {
+          role: "assistant",
+          content:
+            "I could not apply that revision. Your last valid draft is still intact. You can retry the request or proceed.",
+          previewTemplate: currentDraft,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -412,12 +197,12 @@ ${clipPromptText(parsed.extractedText)}`;
             </CardTitle>
             <span
               className={`rounded-full border px-2 py-1 text-xs font-satoshi ${
-                readyToGenerate
+                stage === "review"
                   ? "border-green-300/40 bg-green-400/20 text-cardzzz-cream"
                   : "border-white/25 bg-black/20 text-cardzzz-cream/85"
               }`}
             >
-              {readyToGenerate ? "Ready" : "Shaping your map"}
+              {stage === "review" ? "Review Mode" : "Onboarding"}
             </span>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -429,31 +214,14 @@ ${clipPromptText(parsed.extractedText)}`;
           <div className="grid gap-2 md:grid-cols-2 text-xs font-satoshi text-cardzzz-cream/90">
             <div>
               <span className="text-cardzzz-cream">Live snapshot:</span>{" "}
-              {`${orgSummary.departments.length} departments, ${orgSummary.teams.length} teams, ${orgSummary.roles.length} people, ${orgSummary.workflows.length} agent flows`}
+              {`${summary.departments.length} departments, ${summary.teams.length} teams, ${summary.roles.length} roles, ${summary.workflows.length} agent flows`}
             </div>
             <div>
               <span className="text-cardzzz-cream">Company:</span>{" "}
-              {orgSummary.name || "Not named yet"}
+              {summary.name || companyName || "Not named yet"}
             </div>
           </div>
         </div>
-
-        {(missingFields.length > 0 || suggestions.length > 0) && (
-          <div className="px-4 py-2 border-b border-white/20 bg-cardzzz-accent/30 text-xs font-satoshi text-cardzzz-cream space-y-1">
-            {missingFields.length > 0 && (
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
-                <span>Still need: {missingFields.join(", ")}</span>
-              </div>
-            )}
-            {suggestions.length > 0 && (
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5" />
-                <span>Good upgrades: {suggestions.join(" | ")}</span>
-              </div>
-            )}
-          </div>
-        )}
 
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((message, index) => (
@@ -464,31 +232,26 @@ ${clipPromptText(parsed.extractedText)}`;
               }`}
             >
               <div
-                className={`max-w-[88%] rounded-lg px-4 py-2 ${
+                className={`max-w-[88%] rounded-lg px-4 py-2 text-sm font-satoshi whitespace-pre-wrap ${
                   message.role === "user"
                     ? "bg-cardzzz-cream text-cardzzz-accent border border-cardzzz-cream/50"
                     : "bg-white/10 backdrop-blur-md border border-white/20 text-cardzzz-cream"
                 }`}
               >
-                <div className="text-sm font-satoshi whitespace-pre-wrap">
-                  {message.role === "assistant"
-                    ? renderMarkdown(message.content)
-                    : message.content}
-                </div>
+                {message.content}
               </div>
 
               {message.role === "assistant" && message.previewTemplate && (
                 <div className="mt-2 w-full">
                   <MiniCanvasPreview
                     rootNode={buildRootNodeFromTemplate(message.previewTemplate)}
-                    onConfirm={() => continueToWhiteboard(message.previewTemplate)}
                   />
                 </div>
               )}
             </div>
           ))}
 
-          {busy && (
+          {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-2">
                 <Loader2 className="w-4 h-4 animate-spin text-cardzzz-cream" />
@@ -500,119 +263,105 @@ ${clipPromptText(parsed.extractedText)}`;
         </CardContent>
 
         <div className="border-t border-white/20 p-4 flex-shrink-0 bg-black/20 backdrop-blur-md space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={busy}
-            >
-              <FileUp className="w-4 h-4 mr-2" />
-              Drop Files
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowJsonInput((current) => !current)}
-              disabled={busy}
-            >
-              <Braces className="w-4 h-4 mr-2" />
-              Paste JSON
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={FILE_ACCEPT}
-              multiple
-              onChange={handleDocumentUpload}
-              className="hidden"
-            />
-          </div>
-
-          {uploadedDocuments.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {uploadedDocuments.map((document, index) => (
-                <span
-                  key={`${document.name}-${index}`}
-                  className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-1 text-xs font-satoshi text-cardzzz-cream/90"
-                >
-                  <FileText className="w-3 h-3" />
-                  {document.name}
-                  <span className="text-cardzzz-cream/65">({document.parser})</span>
-                  {document.truncated && <span className="text-cardzzz-cream/65">truncated</span>}
-                </span>
-              ))}
+          {error && (
+            <div className="flex items-start gap-2 rounded-[12px] border border-cardzzz-cream/40 bg-cardzzz-accent/40 px-3 py-2 text-sm font-satoshi text-cardzzz-cream">
+              <AlertCircle className="w-4 h-4 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          {showJsonInput && (
-            <div className="space-y-2 p-3 rounded-[16.168px] border border-white/20 bg-black/20">
-              <textarea
-                value={jsonDraft}
-                onChange={(event) => setJsonDraft(event.target.value)}
-                placeholder="Paste your org JSON here..."
-                rows={8}
-                className="w-full rounded-[16.168px] border border-white/20 bg-black/20 px-3 py-2 text-sm font-mono text-cardzzz-cream placeholder:text-cardzzz-cream/60 caret-cardzzz-cream focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
-                disabled={busy}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowJsonInput(false);
-                    setJsonDraft("");
-                  }}
-                  disabled={busy}
+          {stage === "onboarding" && (
+            <div className="space-y-3">
+              <div className="grid gap-2">
+                <label
+                  htmlFor="org-builder-company-name"
+                  className="text-xs font-satoshi text-cardzzz-cream/90"
                 >
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleJsonImport} disabled={busy || !jsonDraft.trim()}>
-                  Use This JSON
+                  Company Name
+                </label>
+                <input
+                  id="org-builder-company-name"
+                  value={companyName}
+                  onChange={(event) => setCompanyName(event.target.value)}
+                  placeholder="Acme Labs"
+                  className="h-[48px] px-4 rounded-[16.168px] border border-white/20 bg-black/20 text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream font-satoshi focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label
+                  htmlFor="org-builder-company-description"
+                  className="text-xs font-satoshi text-cardzzz-cream/90"
+                >
+                  Company Description
+                </label>
+                <textarea
+                  id="org-builder-company-description"
+                  value={companyDescription}
+                  onChange={(event) => setCompanyDescription(event.target.value)}
+                  placeholder="What does your company do, and what functions need to exist?"
+                  rows={4}
+                  className="w-full rounded-[16.168px] border border-white/20 bg-black/20 px-3 py-2 text-sm font-satoshi text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={submitOnboarding} disabled={isLoading}>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Initial Structure
                 </Button>
               </div>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            {STARTER_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                onClick={() => setInput(prompt)}
-                disabled={busy}
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-satoshi text-cardzzz-cream/90 transition hover:bg-white/20 disabled:opacity-60"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
+          {stage === "review" && (
+            <div className="space-y-3">
+              <div className="text-xs font-satoshi text-cardzzz-cream/85">
+                Request any edits in plain language. Example: add Finance department, set Sales
+                head to Jane, add an SDR team under Sales.
+              </div>
 
-          <div className="flex gap-2">
-            <div className="flex-1 flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void handleSend();
-                  }
-                }}
-                placeholder="Tell me about your business in plain language..."
-                className="flex-1 h-[54px] px-4 py-2 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream font-satoshi focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70 focus:border-cardzzz-cream"
-                disabled={busy}
-              />
-              <Button onClick={handleSend} disabled={busy || !input.trim()}>
-                <Send className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={feedbackInput}
+                  onChange={(event) => setFeedbackInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void submitRevision();
+                    }
+                  }}
+                  placeholder="Describe the change request..."
+                  className="flex-1 h-[54px] px-4 py-2 rounded-[16.168px] border border-white/20 bg-black/20 backdrop-blur-md text-cardzzz-cream placeholder:text-cardzzz-cream/70 caret-cardzzz-cream font-satoshi focus:outline-none focus:ring-2 focus:ring-cardzzz-cream/70 focus:border-cardzzz-cream"
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={submitRevision}
+                  disabled={isLoading || !feedbackInput.trim()}
+                  data-testid="submit-revision"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-satoshi text-cardzzz-cream/80">
+                  Proceed is manual only. Nothing auto-launches.
+                </div>
+                <Button
+                  onClick={() => continueToWhiteboard(currentDraft)}
+                  disabled={!canProceed}
+                  data-testid="proceed-to-whiteboard"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Proceed to Whiteboard
+                </Button>
+              </div>
             </div>
-            <Button onClick={handleGenerate} disabled={busy || !canGenerate}>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Generate Org Chart
-            </Button>
-          </div>
+          )}
         </div>
       </Card>
     </div>

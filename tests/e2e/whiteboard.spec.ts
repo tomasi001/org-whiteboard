@@ -7,6 +7,11 @@ async function createBlankBoard(page: import("@playwright/test").Page, name: str
   await page.getByRole("button", { name: "Create Whiteboard" }).click();
 }
 
+async function openGuidedSetup(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Guided Setup" }).click();
+}
+
 test("allows unrestricted relationships and hides automation child boards on dashboard", async ({
   page,
 }) => {
@@ -35,68 +40,156 @@ test("allows unrestricted relationships and hides automation child boards on das
   await expect(page.getByText("Root Automation Flow")).toHaveCount(0);
 });
 
-test("normalizes pasted JSON and allows mini-org readiness", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Guided Setup" }).click();
+test("guided setup requires minimal onboarding then proceeds with explicit confirmation", async ({
+  page,
+}) => {
+  await page.route("**/api/org-builder", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        guidance: "Initial proposal ready.",
+        updatedDraft: {
+          name: "Atlas Labs",
+          description: "AI consulting and delivery partner.",
+          departments: [
+            {
+              name: "Operations",
+              head: "Olivia Ops",
+              teams: [{ name: "Delivery Team", teamLead: "Olivia Ops" }],
+            },
+            {
+              name: "Sales",
+              head: "Sam Sales",
+              teams: [{ name: "Outbound Team", teamLead: "Sam Sales" }],
+            },
+          ],
+          workflows: [],
+        },
+        questions: ["Any department changes before proceed?"],
+        isValidForProceed: true,
+      }),
+    });
+  });
 
-  await page.getByRole("button", { name: "Paste JSON" }).click();
-  await page.getByPlaceholder("Paste your org JSON here...").fill(`\`\`\`json
-{
-  // minimal seed
-  "name": "Mini Org",
-}
-\`\`\``);
-  await page.getByRole("button", { name: "Use This JSON" }).click();
+  await openGuidedSetup(page);
+  await page.getByLabel("Company Name").fill("Atlas Labs");
+  await page
+    .getByLabel("Company Description")
+    .fill("We provide AI consulting, implementation, and managed operations.");
+  await page.getByRole("button", { name: "Generate Initial Structure" }).click();
 
-  await expect(page.getByText("Ready")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Generate Org Chart" })).toBeEnabled();
-
-  await page.getByRole("button", { name: "Confirm & Continue" }).first().click();
-  await expect(page.getByRole("banner").getByText("Mini Org")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Proceed to Whiteboard" })).toBeEnabled();
+  await page.getByRole("button", { name: "Proceed to Whiteboard" }).click();
+  await expect(page.getByRole("banner").getByText("Atlas Labs")).toBeVisible();
 });
 
-test("guided setup falls back to mapped template when generate API fails", async ({ page }) => {
-  await page.route("**/api/generate", async (route) => {
-    const request = route.request();
-    const body = request.postData();
+test("guided setup revision loop updates draft before manual proceed", async ({ page }) => {
+  let callCount = 0;
 
-    if (!body) {
-      await route.continue();
+  await page.route("**/api/org-builder", async (route) => {
+    callCount += 1;
+
+    if (callCount === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          guidance: "Initial proposal ready.",
+          updatedDraft: {
+            name: "Nova Group",
+            description: "Service company.",
+            departments: [
+              { name: "Operations", head: "Op Head", teams: [{ name: "Ops Team" }] },
+            ],
+            workflows: [],
+          },
+          questions: ["Need any additional departments?"],
+          isValidForProceed: true,
+        }),
+      });
       return;
     }
 
-    try {
-      const payload = JSON.parse(body) as { mode?: string };
-      if (payload.mode === "generate") {
-        await route.fulfill({
-          status: 502,
-          contentType: "application/json",
-          body: JSON.stringify({ error: "Simulated generation failure" }),
-        });
-        return;
-      }
-    } catch {
-      // fall through and continue
-    }
-
-    await route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        guidance: "Applied requested additions.",
+        updatedDraft: {
+          name: "Nova Group",
+          description: "Service company.",
+          departments: [
+            { name: "Operations", head: "Op Head", teams: [{ name: "Ops Team" }] },
+            { name: "Finance", head: "Maya Finance", teams: [{ name: "Finance Team" }] },
+          ],
+          workflows: [],
+        },
+        questions: ["Any further changes before proceed?"],
+        isValidForProceed: true,
+      }),
+    });
   });
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "Guided Setup" }).click();
-  await page.getByRole("button", { name: "Paste JSON" }).click();
-  await page.getByPlaceholder("Paste your org JSON here...").fill(`{
-  "name": "Fallback Org",
-  "departments": [
-    {
-      "name": "Operations",
-      "teams": [{ "name": "Core Ops", "teamMembers": ["Owner"] }]
-    }
-  ]
-}`);
-  await page.getByRole("button", { name: "Use This JSON" }).click();
-  await page.getByRole("button", { name: "Generate Org Chart" }).click();
+  await openGuidedSetup(page);
+  await page.getByLabel("Company Name").fill("Nova Group");
+  await page.getByLabel("Company Description").fill("We run service operations.");
+  await page.getByRole("button", { name: "Generate Initial Structure" }).click();
 
+  await page.getByPlaceholder("Describe the change request...").fill(
+    "Add a Finance department and set head to Maya Finance."
+  );
+  await page.getByTestId("submit-revision").click();
+
+  await expect(page.getByText("Applied requested additions.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Proceed to Whiteboard" })).toBeVisible();
+  await page.getByRole("button", { name: "Proceed to Whiteboard" }).click();
+  await expect(page.getByRole("banner").getByText("Nova Group")).toBeVisible();
+});
+
+test("guided setup keeps last valid draft when revision call fails", async ({ page }) => {
+  let callCount = 0;
+
+  await page.route("**/api/org-builder", async (route) => {
+    callCount += 1;
+
+    if (callCount === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          guidance: "Initial proposal ready.",
+          updatedDraft: {
+            name: "Fallback Org",
+            description: "Business ops.",
+            departments: [{ name: "Operations", head: "Owner", teams: [{ name: "Core Ops" }] }],
+            workflows: [],
+          },
+          questions: ["Need changes?"],
+          isValidForProceed: true,
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Simulated revision failure" }),
+    });
+  });
+
+  await openGuidedSetup(page);
+  await page.getByLabel("Company Name").fill("Fallback Org");
+  await page.getByLabel("Company Description").fill("Business ops.");
+  await page.getByRole("button", { name: "Generate Initial Structure" }).click();
+
+  await page.getByPlaceholder("Describe the change request...").fill("Add a Finance team.");
+  await page.getByTestId("submit-revision").click();
+
+  await expect(page.getByText("last valid draft is still intact")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Proceed to Whiteboard" })).toBeEnabled();
+  await page.getByRole("button", { name: "Proceed to Whiteboard" }).click();
   await expect(page.getByRole("banner").getByText("Fallback Org")).toBeVisible();
 });
 
